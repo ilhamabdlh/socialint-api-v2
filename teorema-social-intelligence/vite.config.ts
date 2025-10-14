@@ -55,7 +55,9 @@
     },
     server: {
       port: 3000,
-      open: true,
+      strictPort: true,
+      host: true, 
+      open: false,
       allowedHosts: [
         'socialint.teoremaintelligence.com',
         'staging.teoremaintelligence.com',
