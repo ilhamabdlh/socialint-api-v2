@@ -150,8 +150,14 @@ class AnalysisService:
         topics_found = df['topic'].unique().tolist()
         
         # Save results
+        import os
         layer_name = f"layer{layer}"
-        output_file = f"{platform}_{brand_name}_{layer_name}.csv"
+        
+        # Ensure data directory exists
+        data_dir = "data/scraped_data"
+        os.makedirs(data_dir, exist_ok=True)
+        
+        output_file = os.path.join(data_dir, f"{platform}_{brand_name}_{layer_name}.csv")
         df.to_csv(output_file, index=False)
         
         processing_time = time.time() - start_time

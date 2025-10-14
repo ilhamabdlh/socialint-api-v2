@@ -78,6 +78,11 @@ data/
 dataset_*.json
 tiktok_*.csv
 
+# Temporary analysis outputs (should be in data/scraped_data)
+*_layer1.csv
+*_layer2.csv
+*_layer3.csv
+
 # Temporary files
 *.tmp
 *.temp
