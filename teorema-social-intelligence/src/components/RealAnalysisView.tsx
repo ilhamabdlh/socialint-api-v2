@@ -146,18 +146,13 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         const queryParams = new URLSearchParams();
         if (filters.dateRange.start) {
           queryParams.append('start_date', filters.dateRange.start);
-          console.log('📅 Start date filter:', filters.dateRange.start);
         }
         if (filters.dateRange.end) {
           queryParams.append('end_date', filters.dateRange.end);
-          console.log('📅 End date filter:', filters.dateRange.end);
         }
         if (filters.platforms.length > 0) {
           queryParams.append('platforms', filters.platforms.join(','));
-          console.log('🔧 Platform filter:', filters.platforms);
         }
-        
-        console.log('🔍 Query params:', queryParams.toString());
         
         // Load brand summary with filters
         const summaryUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;

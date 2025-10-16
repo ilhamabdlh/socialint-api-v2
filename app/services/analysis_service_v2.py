@@ -200,6 +200,20 @@ class AnalysisServiceV2:
             for idx, row in df.iterrows():
                 try:
                     # Prepare post data
+                    # Extract posted_at from TikTok createTime field
+                    posted_at = None
+                    if 'createTimeISO' in row and pd.notna(row.get('createTimeISO')):
+                        try:
+                            posted_at = pd.to_datetime(row['createTimeISO'])
+                        except:
+                            pass
+                    elif 'createTime' in row and pd.notna(row.get('createTime')):
+                        try:
+                            # TikTok createTime is usually in seconds since epoch
+                            posted_at = pd.to_datetime(row['createTime'], unit='s')
+                        except:
+                            pass
+                    
                     post_data = {
                         'platform_post_id': str(row.get('id', f"{platform}_{idx}")),
                         'text': str(row.get('title', row.get('text', ''))),
@@ -216,6 +230,7 @@ class AnalysisServiceV2:
                         'author_age_group': row.get('age_group'),
                         'author_gender': row.get('gender'),
                         'author_location_hint': row.get('location_hint'),
+                        'posted_at': posted_at,  # Use TikTok createTime as posted_at
                         'raw_data': row.to_dict()
                     }
                     

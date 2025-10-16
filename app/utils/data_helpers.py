@@ -369,37 +369,24 @@ def analyze_engagement_patterns(df: pd.DataFrame) -> Dict[str, Any]:
     peak_hours = []
     active_days = []
     
-    print(f"🔍 Engagement patterns analysis - DataFrame shape: {df.shape}")
-    print(f"🔍 Columns: {df.columns.tolist()}")
-    print(f"🔍 Posted_at column exists: {'posted_at' in df.columns}")
-    
     if 'posted_at' in df.columns:
         # Convert to datetime if needed
         df['posted_at'] = pd.to_datetime(df['posted_at'], errors='coerce')
-        
-        print(f"🔍 Posted_at after conversion - null count: {df['posted_at'].isna().sum()}")
-        print(f"🔍 Posted_at sample: {df['posted_at'].head().tolist()}")
         
         # Extract hour and day of week
         df['hour'] = df['posted_at'].dt.hour
         df['day_of_week'] = df['posted_at'].dt.day_name()
         
-        print(f"🔍 Hour column - null count: {df['hour'].isna().sum()}")
-        print(f"🔍 Day of week column - null count: {df['day_of_week'].isna().sum()}")
-        
         # Find peak hours (top 3 hours with highest engagement)
         if not df['hour'].isna().all():
             hour_engagement = df.groupby('hour')['engagement_rate'].mean().sort_values(ascending=False)
             peak_hours = [f"{int(hour):02d}:00" for hour in hour_engagement.head(3).index if not pd.isna(hour)]
-            print(f"🔍 Peak hours found: {peak_hours}")
         
         # Find active days (top 3 days with highest engagement)
         if not df['day_of_week'].isna().all():
             day_engagement = df.groupby('day_of_week')['engagement_rate'].mean().sort_values(ascending=False)
             active_days = day_engagement.head(3).index.tolist()
-            print(f"🔍 Active days found: {active_days}")
     else:
-        print("🔍 No posted_at column found - using fallback logic")
         # Fallback: generate sample data if no timestamp available
         import random
         peak_hours = [f"{random.randint(9, 17):02d}:00" for _ in range(3)]

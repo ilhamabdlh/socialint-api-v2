@@ -583,12 +583,6 @@ async def get_sentiment_timeline(
                     timeline[date_key]["Neutral"] += 1
     
     
-    # Debug logging
-    print(f"🔍 Timeline has {len(timeline)} date entries")
-    if timeline:
-        print(f"🔍 Timeline dates: {list(timeline.keys())}")
-        for date, data in timeline.items():
-            print(f"🔍 {date}: {data['total_posts']} posts, {data['Positive']} positive, {data['Negative']} negative, {data['Neutral']} neutral")
     
     # Return empty timeline if no data exists - no mock data generation
     if not timeline:
@@ -858,12 +852,21 @@ async def get_engagement_patterns(
     import pandas as pd
     posts_data = []
     for post in posts:
+        # Use posted_at if available, otherwise use created_at or current time
+        posted_at = post.posted_at
+        if not posted_at and hasattr(post, 'created_at') and post.created_at:
+            posted_at = post.created_at
+        elif not posted_at:
+            # If no timestamp available, use current time as fallback
+            from datetime import datetime
+            posted_at = datetime.now()
+        
         posts_data.append({
             'like_count': post.like_count or 0,
             'comment_count': post.comment_count or 0,
             'share_count': post.share_count or 0,
             'view_count': getattr(post, 'view_count', 1) or 1,
-            'posted_at': post.posted_at
+            'posted_at': posted_at
         })
     
     df = pd.DataFrame(posts_data)
