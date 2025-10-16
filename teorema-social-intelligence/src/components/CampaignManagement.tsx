@@ -36,6 +36,9 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     type: 'started'
   });
 
+  // Date validation error state
+  const [dateError, setDateError] = useState<string>('');
+
   const handleCloseNotification = () => {
     console.log('🔧 handleCloseNotification called');
     setNotificationState({
@@ -88,11 +91,63 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     });
   };
 
+  // Handle date changes with validation
+  const handleDateChange = (field: 'start_date' | 'end_date', value: string) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    
+    // Validate date range when both dates are selected
+    if (newFormData.start_date && newFormData.end_date) {
+      const validation = validateDateRange(newFormData.start_date, newFormData.end_date);
+      setDateError(validation.isValid ? '' : validation.message);
+    } else {
+      setDateError('');
+    }
+  };
+
   // Get max date (1 year from now)
   const getMaxDate = () => {
     const maxDate = new Date();
     maxDate.setFullYear(maxDate.getFullYear() + 1);
     return maxDate.toISOString().split('T')[0];
+  };
+
+  // Validate date range (max 1 year)
+  const validateDateRange = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return { isValid: false, message: 'Please select both start and end dates' };
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const today = new Date();
+    
+    // Check if start date is in the past
+    if (start < today) {
+      return { isValid: false, message: 'Start date cannot be in the past' };
+    }
+    
+    // Check if end date is before start date
+    if (end <= start) {
+      return { isValid: false, message: 'End date must be after start date' };
+    }
+    
+    // Check if date range is more than 1 year
+    const oneYearFromStart = new Date(start);
+    oneYearFromStart.setFullYear(oneYearFromStart.getFullYear() + 1);
+    
+    if (end > oneYearFromStart) {
+      return { isValid: false, message: 'Date range cannot exceed 1 year' };
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    const dateValidation = validateDateRange(formData.start_date, formData.end_date);
+    return formData.name.trim() !== '' && 
+           formData.description.trim() !== '' && 
+           formData.selectedPlatforms.length > 0 &&
+           dateValidation.isValid;
   };
 
   // Form state for creating/editing campaigns
@@ -176,6 +231,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
       selectedPlatforms: [],
       platformUrls: {}
     });
+    setDateError('');
   };
 
   const handleCreate = async () => {
@@ -235,6 +291,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
 
   const handleEdit = (campaign: Campaign) => {
     setEditingCampaign(campaign);
+    setDateError(''); // Clear any existing date errors
     
     // Initialize platform URLs object
     const platformUrls: Record<string, string> = {};
@@ -538,8 +595,9 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     id="start_date"
                     type="date"
                     value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    onChange={(e) => handleDateChange('start_date', e.target.value)}
                     max={getMaxDate()}
+                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div className="space-y-2">
@@ -548,11 +606,19 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     id="end_date"
                     type="date"
                     value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    onChange={(e) => handleDateChange('end_date', e.target.value)}
                     max={getMaxDate()}
+                    min={formData.start_date || new Date().toISOString().split('T')[0]}
                   />
                 </div>
               </div>
+              
+              {/* Date validation error */}
+              {dateError && (
+                <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
+                  {dateError}
+                </div>
+              )}
               
               <div className="space-y-2">
                 <Label htmlFor="target_audience">Target Audience (comma-separated)</Label>
@@ -597,7 +663,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
               </Button>
               <Button 
                 onClick={editingCampaign ? handleUpdate : handleCreate}
-                disabled={isLoading}
+                disabled={isLoading || !isFormValid()}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingCampaign ? 'Update' : 'Create'} Campaign
