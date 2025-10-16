@@ -46,6 +46,55 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     console.log('🔧 Notification state updated to closed');
   };
 
+  // Platform options with proper case values
+  const platformOptions = [
+    { value: 'tiktok', label: 'TikTok' },
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'twitter', label: 'X/Twitter' },
+    { value: 'youtube', label: 'YouTube' }
+  ];
+
+  // Handle platform selection
+  const handlePlatformChange = (platform: string, checked: boolean) => {
+    if (checked) {
+      setFormData({
+        ...formData,
+        selectedPlatforms: [...formData.selectedPlatforms, platform],
+        platformUrls: {
+          ...formData.platformUrls,
+          [platform]: formData.platformUrls[platform] || ''
+        }
+      });
+    } else {
+      setFormData({
+        ...formData,
+        selectedPlatforms: formData.selectedPlatforms.filter(p => p !== platform),
+        platformUrls: {
+          ...formData.platformUrls,
+          [platform]: ''
+        }
+      });
+    }
+  };
+
+  // Handle platform URL changes
+  const handlePlatformUrlChange = (platform: string, urls: string) => {
+    setFormData({
+      ...formData,
+      platformUrls: {
+        ...formData.platformUrls,
+        [platform]: urls
+      }
+    });
+  };
+
+  // Get max date (1 year from now)
+  const getMaxDate = () => {
+    const maxDate = new Date();
+    maxDate.setFullYear(maxDate.getFullYear() + 1);
+    return maxDate.toISOString().split('T')[0];
+  };
+
   // Form state for creating/editing campaigns
   const [formData, setFormData] = useState({
     name: "",
@@ -58,7 +107,9 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     start_date: "",
     end_date: "",
     target_audience: "",
-    platforms: ""
+    platforms: "",
+    selectedPlatforms: [] as string[],
+    platformUrls: {} as Record<string, string>
   });
 
   // Load campaigns from API on mount
@@ -121,7 +172,9 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
       start_date: "",
       end_date: "",
       target_audience: "",
-      platforms: ""
+      platforms: "",
+      selectedPlatforms: [],
+      platformUrls: {}
     });
   };
 
@@ -129,15 +182,19 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     try {
       setIsLoading(true);
       
-      // Parse form data
-      const postUrls = formData.postUrls
-        .split('\n')
-        .filter(url => url.trim())
-        .map(url => ({
-          url: url.trim(),
-          platform: 'tiktok', // Default platform, can be enhanced
-          title: formData.name
-        }));
+      // Parse form data - combine all platform URLs
+      const allUrls: string[] = [];
+      Object.values(formData.platformUrls).forEach((urls: string) => {
+        if (urls.trim()) {
+          allUrls.push(...urls.split('\n').filter(url => url.trim()));
+        }
+      });
+      
+      const postUrls = allUrls.map(url => ({
+        url: url.trim(),
+        platform: 'tiktok', // Will be determined by URL analysis
+        title: formData.name
+      }));
 
       const campaignData: CampaignCreate = {
         campaign_name: formData.name,
@@ -146,7 +203,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
         brand_name: formData.brand_name,
         keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
         target_audiences: formData.target_audience.split(',').map(a => a.trim()).filter(a => a),
-        platforms: formData.platforms.split(',').map(p => p.trim()).filter(p => p) as any,
+        platforms: formData.selectedPlatforms as any,
         post_urls: postUrls,
         start_date: new Date(formData.start_date).toISOString(),
         end_date: new Date(formData.end_date).toISOString(),
@@ -408,16 +465,45 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                 </div>
               </div>
               
+              {/* Platform Selection */}
               <div className="space-y-2">
-                <Label htmlFor="postUrls">Post URLs (one per line)</Label>
-                <Textarea
-                  id="postUrls"
-                  value={formData.postUrls}
-                  onChange={(e) => setFormData({ ...formData, postUrls: e.target.value })}
-                  placeholder="https://twitter.com/tesla/status/123&#10;https://youtube.com/watch?v=abc&#10;https://reddit.com/r/teslamotors/post"
-                  rows={4}
-                />
+                <Label>Platforms</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {platformOptions.map((platform) => (
+                    <div key={platform.value} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`platform-${platform.value}`}
+                        checked={formData.selectedPlatforms.includes(platform.value)}
+                        onChange={(e) => handlePlatformChange(platform.value, e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      <Label htmlFor={`platform-${platform.value}`} className="text-sm">
+                        {platform.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Platform-specific URL fields */}
+              {formData.selectedPlatforms.map((platform) => {
+                const platformLabel = platformOptions.find(p => p.value === platform)?.label || platform;
+                return (
+                  <div key={platform} className="space-y-2">
+                    <Label htmlFor={`urls-${platform}`}>
+                      {platformLabel} URLs (one per line)
+                    </Label>
+                    <Textarea
+                      id={`urls-${platform}`}
+                      value={formData.platformUrls[platform] || ''}
+                      onChange={(e) => handlePlatformUrlChange(platform, e.target.value)}
+                      placeholder={`Enter ${platformLabel} URLs, one per line...`}
+                      rows={3}
+                    />
+                  </div>
+                );
+              })}
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -427,6 +513,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     type="date"
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    max={getMaxDate()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -436,6 +523,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     type="date"
                     value={formData.end_date}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    max={getMaxDate()}
                   />
                 </div>
               </div>
@@ -450,29 +538,23 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                 />
               </div>
               
+              {/* Status Display - Read Only */}
               <div className="space-y-2">
-                <Label htmlFor="platforms">Platforms (comma-separated)</Label>
-                <Input
-                  id="platforms"
-                  value={formData.platforms}
-                  onChange={(e) => setFormData({ ...formData, platforms: e.target.value })}
-                  placeholder="Twitter/X, YouTube, Reddit, Instagram"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value: Campaign['status']) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paused">Paused</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Status</Label>
+                <div className="flex items-center space-x-2">
+                  <Badge 
+                    variant={formData.status === 'active' ? 'default' : 
+                             formData.status === 'completed' ? 'secondary' : 'outline'}
+                    className="text-sm"
+                  >
+                    {formData.status === 'active' ? 'Active' :
+                     formData.status === 'completed' ? 'Completed' : 'Draft'}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {formData.status === 'active' ? 'Analysis ongoing or date range not finished' :
+                     formData.status === 'completed' ? 'Analysis completed' : 'Ready to start'}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2">

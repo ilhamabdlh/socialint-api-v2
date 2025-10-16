@@ -64,67 +64,6 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
 
   return (
     <div className="space-y-6">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Sentiment Trend</p>
-                <p className="text-2xl font-bold">
-                  {currentSentiment}%
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-blue-500" />
-                <Badge variant="outline" className={getTrendColor(sentimentTrend)}>
-                  {getTrendIcon(sentimentTrend)} {Math.abs(sentimentTrend).toFixed(1)}%
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Mentions Trend</p>
-                <p className="text-2xl font-bold">
-                  {currentMentions.toLocaleString()}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-green-500" />
-                <Badge variant="outline" className={getTrendColor(mentionsTrend)}>
-                  {getTrendIcon(mentionsTrend)} {Math.abs(mentionsTrend).toFixed(1)}%
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Engagement Trend</p>
-                <p className="text-2xl font-bold">
-                  {currentEngagement > 1000
-                    ? `${(currentEngagement / 1000).toFixed(1)}K`
-                    : currentEngagement.toLocaleString()}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Heart className="h-5 w-5 text-red-500" />
-                <Badge variant="outline" className={getTrendColor(engagementTrend)}>
-                  {getTrendIcon(engagementTrend)} {Math.abs(engagementTrend).toFixed(1)}%
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Time Series Charts */}
       <Card>
