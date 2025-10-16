@@ -479,7 +479,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Overall Sentiment</p>
+                <p className="text-sm text-muted-foreground">Positive Sentiment %</p>
                 <p className={`text-2xl font-bold ${getSentimentColor(overallSentiment)}`}>
                   {overallSentiment}%
                 </p>
@@ -495,7 +495,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Mentions</p>
+                <p className="text-sm text-muted-foreground">Number of Talks</p>
                 <p className="text-2xl font-bold">
                   {brandSummary ? brandSummary.total_posts?.toLocaleString() || '0' : safeData.total_posts.toLocaleString()}
                 </p>
