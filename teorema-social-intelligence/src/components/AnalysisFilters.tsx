@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Calendar, Filter, RotateCcw } from "lucide-react";
-import { Campaign, Brand, Content } from "@/lib/mock-data";
+import { Campaign, Brand, Content } from "../lib/mock-data";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export interface FilterState {
   dateRange: {
@@ -153,24 +155,35 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-muted-foreground">Start Date</label>
-              <Input
-                type="date"
-                value={localFilters.dateRange.start}
-                onChange={(e) => handleFilterChange('dateRange', {
+              <DatePicker
+                selected={localFilters.dateRange.start ? new Date(localFilters.dateRange.start) : null}
+                onChange={(date) => handleFilterChange('dateRange', {
                   ...localFilters.dateRange,
-                  start: e.target.value
+                  start: date ? date.toISOString().split('T')[0] : ''
                 })}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="Select start date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                showPopperArrow={false}
+                isClearable={false}
+                maxDate={new Date()}
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">End Date</label>
-              <Input
-                type="date"
-                value={localFilters.dateRange.end}
-                onChange={(e) => handleFilterChange('dateRange', {
+              <DatePicker
+                selected={localFilters.dateRange.end ? new Date(localFilters.dateRange.end) : null}
+                onChange={(date) => handleFilterChange('dateRange', {
                   ...localFilters.dateRange,
-                  end: e.target.value
+                  end: date ? date.toISOString().split('T')[0] : ''
                 })}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="Select end date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                showPopperArrow={false}
+                isClearable={false}
+                maxDate={new Date()}
+                minDate={localFilters.dateRange.start ? new Date(localFilters.dateRange.start) : undefined}
               />
             </div>
           </div>

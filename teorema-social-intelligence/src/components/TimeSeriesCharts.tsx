@@ -75,6 +75,7 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
     };
   }) || [];
 
+
   // Use only real data - no fallback to mock data
   const chartData = realChartData;
 
@@ -239,7 +240,7 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
                     <XAxis dataKey="date" />
                     <YAxis domain={[0, 100]} />
                     <Tooltip 
-                      formatter={(value, name) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]}
+                      formatter={(value, name) => [`${value}%`, typeof name === 'string' ? name.charAt(0).toUpperCase() + name.slice(1) : name]}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
                     <Bar dataKey="positive" stackId="sentiment" fill="#22c55e" name="positive" />

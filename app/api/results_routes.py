@@ -545,6 +545,37 @@ async def get_sentiment_timeline(
                     timeline[date_key]["Negative"] += 1
                 else:
                     timeline[date_key]["Neutral"] += 1
+        else:
+            # If no posted_at, use created_at or current date
+            fallback_date = post.created_at.date() if hasattr(post, 'created_at') and post.created_at else datetime.now().date()
+            date_key = fallback_date.isoformat()
+            if date_key not in timeline:
+                timeline[date_key] = {
+                    "Positive": 0, 
+                    "Negative": 0, 
+                    "Neutral": 0,
+                    "total_posts": 0,
+                    "total_likes": 0,
+                    "total_comments": 0,
+                    "total_shares": 0
+                }
+            
+            timeline[date_key]["total_posts"] += 1
+            timeline[date_key]["total_likes"] += post.like_count or 0
+            timeline[date_key]["total_comments"] += post.comment_count or 0
+            timeline[date_key]["total_shares"] += post.share_count or 0
+            
+            if post.sentiment:
+                timeline[date_key][post.sentiment] += 1
+            else:
+                # If no sentiment, assign based on engagement
+                if (post.like_count or 0) > 10:
+                    timeline[date_key]["Positive"] += 1
+                elif (post.comment_count or 0) > 5:
+                    timeline[date_key]["Negative"] += 1
+                else:
+                    timeline[date_key]["Neutral"] += 1
+    
     
     # Return empty timeline if no data exists - no mock data generation
     if not timeline:
