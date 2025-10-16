@@ -112,6 +112,13 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     return maxDate.toISOString().split('T')[0];
   };
 
+  // Get min date (1 year ago)
+  const getMinDate = () => {
+    const minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 1);
+    return minDate.toISOString().split('T')[0];
+  };
+
   // Validate date range (max 1 year from today)
   const validateDateRange = (startDate: string, endDate: string) => {
     if (!startDate || !endDate) return { isValid: false, message: 'Please select both start and end dates' };
@@ -125,7 +132,15 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
       return { isValid: false, message: 'End date must be on or after start date' };
     }
     
-    // Check if date range is more than 1 year from today
+    // Check if start date is more than 1 year in the past
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    if (start < oneYearAgo) {
+      return { isValid: false, message: 'Start date cannot be more than 1 year in the past' };
+    }
+    
+    // Check if end date is more than 1 year from today
     const oneYearFromToday = new Date(today);
     oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
     
@@ -592,6 +607,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     value={formData.start_date}
                     onChange={(e) => handleDateChange('start_date', e.target.value)}
                     max={getMaxDate()}
+                    min={getMinDate()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -602,7 +618,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     value={formData.end_date}
                     onChange={(e) => handleDateChange('end_date', e.target.value)}
                     max={getMaxDate()}
-                    min={formData.start_date}
+                    min={formData.start_date || getMinDate()}
                   />
                 </div>
               </div>
