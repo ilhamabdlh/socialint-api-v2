@@ -6,8 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { Calendar, Filter, RotateCcw } from "lucide-react";
 import { Campaign, Brand, Content } from "../lib/mock-data";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 
 export interface FilterState {
   dateRange: {
@@ -155,35 +153,29 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-muted-foreground">Start Date</label>
-              <DatePicker
-                selected={localFilters.dateRange.start ? new Date(localFilters.dateRange.start) : null}
-                onChange={(date) => handleFilterChange('dateRange', {
+              <Input
+                type="date"
+                value={localFilters.dateRange.start}
+                onChange={(e) => handleFilterChange('dateRange', {
                   ...localFilters.dateRange,
-                  start: date ? date.toISOString().split('T')[0] : ''
+                  start: e.target.value
                 })}
-                dateFormat="dd/MM/yyyy"
-                placeholderText="Select start date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                showPopperArrow={false}
-                isClearable={false}
-                maxDate={new Date()}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full"
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">End Date</label>
-              <DatePicker
-                selected={localFilters.dateRange.end ? new Date(localFilters.dateRange.end) : null}
-                onChange={(date) => handleFilterChange('dateRange', {
+              <Input
+                type="date"
+                value={localFilters.dateRange.end}
+                onChange={(e) => handleFilterChange('dateRange', {
                   ...localFilters.dateRange,
-                  end: date ? date.toISOString().split('T')[0] : ''
+                  end: e.target.value
                 })}
-                dateFormat="dd/MM/yyyy"
-                placeholderText="Select end date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                showPopperArrow={false}
-                isClearable={false}
-                maxDate={new Date()}
-                minDate={localFilters.dateRange.start ? new Date(localFilters.dateRange.start) : undefined}
+                max={new Date().toISOString().split('T')[0]}
+                min={localFilters.dateRange.start || undefined}
+                className="w-full"
               />
             </div>
           </div>
