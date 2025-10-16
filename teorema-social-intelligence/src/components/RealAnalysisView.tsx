@@ -97,15 +97,30 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Filter state
-  const [filters, setFilters] = useState<FilterState>({
-    dateRange: {
-      start: '',
-      end: ''
-    },
-    platforms: [],
-    posts: [],
-    ...(entityType === 'brand' && { keywords: [] })
+  // Filter state - Initialize with campaign date range if available
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const defaultFilters = {
+      dateRange: {
+        start: '',
+        end: ''
+      },
+      platforms: [],
+      posts: [],
+      ...(entityType === 'brand' && { keywords: [] })
+    };
+
+    // If entity is a campaign, use campaign date range as default
+    if (entityType === 'campaign' && entity) {
+      const campaign = entity as Campaign;
+      if (campaign.start_date && campaign.end_date) {
+        defaultFilters.dateRange = {
+          start: campaign.start_date,
+          end: campaign.end_date
+        };
+      }
+    }
+
+    return defaultFilters;
   });
 
   // Get brand name berdasarkan entity type

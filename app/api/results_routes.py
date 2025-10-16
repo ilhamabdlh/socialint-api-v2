@@ -583,6 +583,13 @@ async def get_sentiment_timeline(
                     timeline[date_key]["Neutral"] += 1
     
     
+    # Debug logging
+    print(f"🔍 Timeline has {len(timeline)} date entries")
+    if timeline:
+        print(f"🔍 Timeline dates: {list(timeline.keys())}")
+        for date, data in timeline.items():
+            print(f"🔍 {date}: {data['total_posts']} posts, {data['Positive']} positive, {data['Negative']} negative, {data['Neutral']} neutral")
+    
     # Return empty timeline if no data exists - no mock data generation
     if not timeline:
         return {
