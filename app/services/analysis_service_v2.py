@@ -15,7 +15,10 @@ from app.utils.data_helpers import (
     get_platform_text_column,
     calculate_sentiment_distribution,
     validate_post_urls,
-    filter_by_date_range
+    filter_by_date_range,
+    normalize_topic_labeling,
+    consolidate_demographics,
+    analyze_engagement_patterns
 )
 from app.models.database import (
     Brand, Post, Comment, AnalysisJob,
@@ -145,6 +148,10 @@ class AnalysisServiceV2:
             topics = self.ai_service.topic_analysis(batch, self.topics_global)
             all_topics.extend(topics)
         
+        # Normalize topic labels to handle case variations
+        topic_mapping = normalize_topic_labeling(all_topics)
+        normalized_topics = [topic_mapping.get(topic, topic) for topic in all_topics]
+        
         # Run emotions analysis batch by batch
         all_emotions = []
         for batch in batches:
@@ -159,11 +166,18 @@ class AnalysisServiceV2:
         
         # Add results to dataframe
         df['sentiment'] = all_sentiments
-        df['topic'] = all_topics
+        df['topic'] = normalized_topics  # Use normalized topics
         df['emotion'] = all_emotions
+        
+        # Consolidate demographics to remove duplicates
+        consolidated_demo = consolidate_demographics(all_demographics)
         df['age_group'] = [d.get('age_group', 'unknown') for d in all_demographics]
         df['gender'] = [d.get('gender', 'unknown') for d in all_demographics]
         df['location_hint'] = [d.get('location_hint', 'unknown') for d in all_demographics]
+        
+        # Analyze engagement patterns
+        engagement_patterns = analyze_engagement_patterns(df)
+        df['engagement_patterns'] = engagement_patterns
         
         return df
     

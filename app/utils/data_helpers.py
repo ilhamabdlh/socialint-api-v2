@@ -2,6 +2,7 @@ import pandas as pd
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import re
+from collections import Counter
 
 def remove_duplicates(data: List[str], platform: str) -> List[str]:
     """Remove duplicate texts from list"""
@@ -18,6 +19,125 @@ def explicit_keywords_cleansing(data: List[str], keywords: List[str]) -> List[st
         if isinstance(text, str) and any(keyword.lower() in text.lower() for keyword in keywords):
             cleaned_data.append(text)
     return cleaned_data
+
+def normalize_topic_labeling(topics: List[str]) -> Dict[str, str]:
+    """
+    Normalize topic labels to handle case variations and similar topics
+    e.g., "Indonesian politics", "Indonesian Politics", "indonesian politic" -> "indonesian politics"
+    """
+    if not topics:
+        return {}
+    
+    # Create mapping from normalized to original topics
+    normalized_map = {}
+    topic_counts = Counter()
+    
+    for topic in topics:
+        if not isinstance(topic, str) or not topic.strip():
+            continue
+            
+        # Normalize: lowercase, strip, remove extra spaces
+        normalized = re.sub(r'\s+', ' ', topic.strip().lower())
+        
+        # Count occurrences
+        topic_counts[normalized] += 1
+        
+        # Keep track of original topic for mapping
+        if normalized not in normalized_map:
+            normalized_map[normalized] = topic
+    
+    # Create final mapping from original topics to normalized topics
+    final_mapping = {}
+    for topic in topics:
+        if not isinstance(topic, str) or not topic.strip():
+            continue
+            
+        normalized = re.sub(r'\s+', ' ', topic.strip().lower())
+        final_mapping[topic] = normalized
+    
+    return final_mapping
+
+def consolidate_demographics(demographics: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Consolidate duplicate demographic data
+    Merge overlapping age groups and gender categories
+    """
+    if not demographics:
+        return {}
+    
+    # Process age groups
+    age_groups = {}
+    for demo in demographics:
+        age_group = demo.get('age_group', 'unknown')
+        if age_group and age_group != 'unknown':
+            # Normalize age group labels
+            normalized_age = normalize_age_group(age_group)
+            if normalized_age in age_groups:
+                age_groups[normalized_age] += 1
+            else:
+                age_groups[normalized_age] = 1
+    
+    # Process gender distribution
+    gender_dist = {}
+    for demo in demographics:
+        gender = demo.get('gender', 'unknown')
+        if gender and gender != 'unknown':
+            # Normalize gender labels - merge 'or' combinations into neutral
+            normalized_gender = normalize_gender(gender)
+            if normalized_gender in gender_dist:
+                gender_dist[normalized_gender] += 1
+            else:
+                gender_dist[normalized_gender] = 1
+    
+    return {
+        'age_groups': age_groups,
+        'gender_distribution': gender_dist
+    }
+
+def normalize_age_group(age_group: str) -> str:
+    """Normalize age group labels"""
+    if not age_group:
+        return 'unknown'
+    
+    # Convert to lowercase and handle common variations
+    normalized = age_group.lower().strip()
+    
+    # Handle overlapping age groups
+    if '18-24' in normalized or '18-24 or' in normalized:
+        return '18-24'
+    elif '25-34' in normalized and '35-44' not in normalized and '45-54' not in normalized:
+        return '25-34'
+    elif '35-44' in normalized and '45-54' not in normalized:
+        return '35-44'
+    elif '45-54' in normalized and '55+' not in normalized:
+        return '45-54'
+    elif '55+' in normalized:
+        return '55+'
+    elif '35-54' in normalized:
+        return '35-54'
+    
+    return normalized
+
+def normalize_gender(gender: str) -> str:
+    """Normalize gender labels - merge 'or' combinations into neutral"""
+    if not gender:
+        return 'unknown'
+    
+    normalized = gender.lower().strip()
+    
+    # If contains 'or' combinations, merge into neutral
+    if ' or ' in normalized or 'or' in normalized:
+        return 'neutral'
+    
+    # Handle common gender labels
+    if 'male' in normalized and 'female' not in normalized and 'neutral' not in normalized:
+        return 'male'
+    elif 'female' in normalized and 'male' not in normalized and 'neutral' not in normalized:
+        return 'female'
+    elif 'neutral' in normalized or 'unknown' in normalized:
+        return 'neutral'
+    
+    return normalized
 
 def get_platform_text_column(platform: str, layer: int = 1) -> str:
     """Get the appropriate text column name based on platform and layer"""
@@ -214,4 +334,52 @@ def filter_by_date_range(
         print(f"✓ Removed {removed_count} posts outside date range ({date_range_str})")
     
     return df.reset_index(drop=True)
+
+def analyze_engagement_patterns(df: pd.DataFrame) -> Dict[str, Any]:
+    """
+    Analyze engagement patterns to find peak hours, active days, and average engagement rate
+    """
+    if df.empty:
+        return {
+            'peak_hours': [],
+            'active_days': [],
+            'avg_engagement_rate': 0.0
+        }
+    
+    # Calculate engagement rate for each post
+    if 'like_count' in df.columns and 'comment_count' in df.columns and 'share_count' in df.columns:
+        df['engagement_rate'] = (df['like_count'] + df['comment_count'] + df['share_count']) / df.get('view_count', 1)
+    else:
+        df['engagement_rate'] = 0
+    
+    # Extract time patterns if timestamp is available
+    peak_hours = []
+    active_days = []
+    
+    if 'posted_at' in df.columns:
+        # Convert to datetime if needed
+        df['posted_at'] = pd.to_datetime(df['posted_at'], errors='coerce')
+        
+        # Extract hour and day of week
+        df['hour'] = df['posted_at'].dt.hour
+        df['day_of_week'] = df['posted_at'].dt.day_name()
+        
+        # Find peak hours (top 3 hours with highest engagement)
+        if not df['hour'].isna().all():
+            hour_engagement = df.groupby('hour')['engagement_rate'].mean().sort_values(ascending=False)
+            peak_hours = [f"{int(hour):02d}:00" for hour in hour_engagement.head(3).index if not pd.isna(hour)]
+        
+        # Find active days (top 3 days with highest engagement)
+        if not df['day_of_week'].isna().all():
+            day_engagement = df.groupby('day_of_week')['engagement_rate'].mean().sort_values(ascending=False)
+            active_days = day_engagement.head(3).index.tolist()
+    
+    # Calculate average engagement rate
+    avg_engagement_rate = df['engagement_rate'].mean() if not df['engagement_rate'].isna().all() else 0.0
+    
+    return {
+        'peak_hours': peak_hours,
+        'active_days': active_days,
+        'avg_engagement_rate': round(avg_engagement_rate * 100, 2)  # Convert to percentage
+    }
 

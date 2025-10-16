@@ -7,6 +7,7 @@ from app.models.database import (
     PlatformType, AnalysisStatusType
 )
 from app.services.database_service import db_service
+from app.utils.data_helpers import consolidate_demographics, analyze_engagement_patterns
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -540,33 +541,34 @@ async def get_demographics_analysis(
     
     posts = await db_service.get_posts_by_brand(brand, platform, limit=limit)
     
-    # Count demographics
-    age_groups = {}
-    genders = {}
+    # Prepare demographics data for consolidation
+    demographics_data = []
     locations = {}
     total = 0
     
     for post in posts:
-        if post.author_age_group and post.author_age_group != 'unknown':
-            age_groups[post.author_age_group] = age_groups.get(post.author_age_group, 0) + 1
-        
-        if post.author_gender and post.author_gender != 'unknown':
-            genders[post.author_gender] = genders.get(post.author_gender, 0) + 1
+        demographics_data.append({
+            'age_group': post.author_age_group,
+            'gender': post.author_gender
+        })
         
         if post.author_location_hint and post.author_location_hint != 'unknown':
             locations[post.author_location_hint] = locations.get(post.author_location_hint, 0) + 1
         
         total += 1
     
-    # Format data
+    # Consolidate demographics to remove duplicates
+    consolidated_demo = consolidate_demographics(demographics_data)
+    
+    # Format consolidated data
     age_data = [
         {"age_group": age, "count": count, "percentage": round(count / total * 100, 2) if total > 0 else 0}
-        for age, count in sorted(age_groups.items(), key=lambda x: x[1], reverse=True)
+        for age, count in sorted(consolidated_demo.get('age_groups', {}).items(), key=lambda x: x[1], reverse=True)
     ]
     
     gender_data = [
         {"gender": gender, "count": count, "percentage": round(count / total * 100, 2) if total > 0 else 0}
-        for gender, count in sorted(genders.items(), key=lambda x: x[1], reverse=True)
+        for gender, count in sorted(consolidated_demo.get('gender_distribution', {}).items(), key=lambda x: x[1], reverse=True)
     ]
     
     location_data = [
@@ -581,6 +583,56 @@ async def get_demographics_analysis(
         "age_groups": age_data,
         "genders": gender_data,
         "top_locations": location_data
+    }
+
+@router.get("/brands/{brand_name}/engagement-patterns")
+async def get_engagement_patterns(
+    brand_name: str,
+    platform: Optional[PlatformType] = None,
+    limit: int = Query(default=10000)
+):
+    """
+    Get engagement patterns analysis for a brand
+    Returns peak hours, active days, and average engagement rate
+    """
+    brand = await db_service.get_brand(brand_name)
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    
+    posts = await db_service.get_posts_by_brand(brand, platform, limit=limit)
+    
+    if not posts:
+        return {
+            "brand_name": brand.name,
+            "platform": platform.value if platform else "all",
+            "peak_hours": [],
+            "active_days": [],
+            "avg_engagement_rate": 0.0,
+            "total_posts": 0
+        }
+    
+    # Convert posts to DataFrame for analysis
+    import pandas as pd
+    posts_data = []
+    for post in posts:
+        posts_data.append({
+            'like_count': post.like_count or 0,
+            'comment_count': post.comment_count or 0,
+            'share_count': post.share_count or 0,
+            'view_count': getattr(post, 'view_count', 1) or 1,
+            'posted_at': post.posted_at
+        })
+    
+    df = pd.DataFrame(posts_data)
+    engagement_patterns = analyze_engagement_patterns(df)
+    
+    return {
+        "brand_name": brand.name,
+        "platform": platform.value if platform else "all",
+        "peak_hours": engagement_patterns.get('peak_hours', []),
+        "active_days": engagement_patterns.get('active_days', []),
+        "avg_engagement_rate": engagement_patterns.get('avg_engagement_rate', 0.0),
+        "total_posts": len(posts)
     }
 
 # ============= PERFORMANCE METRICS ENDPOINTS =============
