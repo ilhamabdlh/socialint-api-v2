@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
@@ -14,6 +15,16 @@ interface TimeSeriesChartsProps {
 }
 
 export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSummary, performanceData, sentimentTimeline }: TimeSeriesChartsProps) {
+  // Format engagement value for display
+  const formatEngagement = (value: number) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toString();
+  };
+
   // Calculate trends
   const calculateTrend = (values: number[]) => {
     if (values.length < 2) return 0;

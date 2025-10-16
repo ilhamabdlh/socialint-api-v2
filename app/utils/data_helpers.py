@@ -89,9 +89,22 @@ def consolidate_demographics(demographics: List[Dict[str, Any]]) -> Dict[str, An
             else:
                 gender_dist[normalized_gender] = 1
     
+    # Process location distribution
+    locations = {}
+    for demo in demographics:
+        location = demo.get('location_hint', 'unknown')
+        if location and location != 'unknown':
+            # Normalize location labels
+            normalized_location = normalize_location(location)
+            if normalized_location in locations:
+                locations[normalized_location] += 1
+            else:
+                locations[normalized_location] = 1
+    
     return {
         'age_groups': age_groups,
-        'gender_distribution': gender_dist
+        'gender_distribution': gender_dist,
+        'locations': locations
     }
 
 def normalize_age_group(age_group: str) -> str:
@@ -382,4 +395,27 @@ def analyze_engagement_patterns(df: pd.DataFrame) -> Dict[str, Any]:
         'active_days': active_days,
         'avg_engagement_rate': round(avg_engagement_rate * 100, 2)  # Convert to percentage
     }
+
+def normalize_location(location: str) -> str:
+    """Normalize location labels - merge case variations"""
+    if not location:
+        return 'unknown'
+    
+    # Convert to lowercase and strip whitespace
+    normalized = location.lower().strip()
+    
+    # Handle common location variations
+    if 'indonesia' in normalized:
+        return 'Indonesia'
+    elif 'jakarta' in normalized:
+        return 'Jakarta, Indonesia'
+    elif 'solo' in normalized:
+        return 'Solo, Indonesia'
+    elif 'maluku' in normalized:
+        return 'Maluku, Indonesia'
+    elif 'ambon' in normalized:
+        return 'Ambon, Indonesia'
+    
+    # For other locations, capitalize first letter of each word
+    return ' '.join(word.capitalize() for word in normalized.split())
 

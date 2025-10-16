@@ -7,7 +7,7 @@ from app.models.database import (
     PlatformType, AnalysisStatusType
 )
 from app.services.database_service import db_service
-from app.utils.data_helpers import consolidate_demographics, analyze_engagement_patterns, normalize_topic_labeling
+from app.utils.data_helpers import consolidate_demographics, analyze_engagement_patterns, normalize_topic_labeling, normalize_location
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -595,9 +595,11 @@ async def get_demographics_analysis(
         for gender, count in sorted(consolidated_demo.get('gender_distribution', {}).items(), key=lambda x: x[1], reverse=True)
     ]
     
+    # Use consolidated locations instead of raw locations
+    consolidated_locations = consolidated_demo.get('locations', {})
     location_data = [
         {"location": loc, "count": count, "percentage": round(count / total * 100, 2) if total > 0 else 0}
-        for loc, count in sorted(locations.items(), key=lambda x: x[1], reverse=True)[:10]  # Top 10 locations
+        for loc, count in sorted(consolidated_locations.items(), key=lambda x: x[1], reverse=True)[:10]  # Top 10 locations
     ]
     
     return {

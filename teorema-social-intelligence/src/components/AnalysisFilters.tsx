@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Calendar, Filter, RotateCcw } from "lucide-react";
-import { Campaign, Brand, Content } from "../lib/mock-data";
+import { Campaign, Brand, Content } from "@/lib/mock-data";
 
 export interface FilterState {
   dateRange: {
@@ -81,6 +81,11 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
     onFiltersChange(defaultFilters);
   };
 
+  // Apply filters to API calls
+  const applyFilters = () => {
+    onFiltersChange(localFilters);
+  };
+
   // Get available options based on entity type
   const getAvailablePlatforms = () => {
     switch (entityType) {
@@ -135,10 +140,15 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
             <Filter className="h-5 w-5" />
             Analysis Filters
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={resetFilters}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={resetFilters}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+            <Button size="sm" onClick={applyFilters}>
+              Apply Filters
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

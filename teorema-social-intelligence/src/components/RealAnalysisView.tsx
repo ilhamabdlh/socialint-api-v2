@@ -127,6 +127,18 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         
         const brandName = getBrandName();
         
+        // Build query parameters from filters
+        const queryParams = new URLSearchParams();
+        if (filters.dateRange.start) {
+          queryParams.append('start_date', filters.dateRange.start);
+        }
+        if (filters.dateRange.end) {
+          queryParams.append('end_date', filters.dateRange.end);
+        }
+        if (filters.platforms.length > 0) {
+          queryParams.append('platforms', filters.platforms.join(','));
+        }
+        
         // Load brand summary
         const summaryResponse = await resultsAPI.getBrandSummary(brandName);
         setBrandSummary(summaryResponse);
@@ -205,7 +217,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
     };
 
     loadData();
-  }, [entity, entityType]);
+  }, [entity, entityType, filters]);
 
   // Fallback data jika API tidak tersedia - dengan nilai 0 untuk parameter kosong
   const getFallbackData = (): BrandSummaryData => ({
@@ -513,7 +525,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
           {/* Detailed Analysis Tabs */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-5 gap-1">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Info className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>
@@ -533,10 +545,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               <TabsTrigger value="audience" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Audience</span>
-              </TabsTrigger>
-              <TabsTrigger value="performance" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Performance</span>
               </TabsTrigger>
             </TabsList>
 
@@ -848,6 +856,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                                 fullMark: 100
                               }
                             ];
+                            
+                            // Calculate dynamic maximum axis value based on highest emotion
+                            const maxEmotionValue = Math.max(...chartData.map(d => d.value));
+                            const dynamicMax = Math.ceil(maxEmotionValue / 10) * 10; // Round up to nearest 10
+                            
                             return (
                               <RechartsRadarChart
                                 width={800}
@@ -856,7 +869,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                               >
                                 <PolarGrid />
                                 <PolarAngleAxis dataKey="emotion" />
-                                <PolarRadiusAxis domain={[0, 100]} />
+                                <PolarRadiusAxis domain={[0, dynamicMax]} />
                                 <Radar
                                   name="Emotions"
                                   dataKey="value"
@@ -1027,84 +1040,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               </Card>
             </TabsContent>
 
-            <TabsContent value="performance" className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Performance Metrics */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Performance Metrics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-blue-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600 mb-1">Total Reach</div>
-                        <div className="text-2xl font-bold text-blue-600">
-                          {performanceData ? `${Math.round((performanceData.estimated_reach || 0) / 1000000)}M` : '2.8M'}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-green-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600 mb-1">Impressions</div>
-                        <div className="text-2xl font-bold text-green-600">
-                          {performanceData ? `${Math.round((performanceData.estimated_reach || 0) * 1.5 / 1000000)}M` : '4.2M'}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-orange-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600 mb-1">Share Rate</div>
-                        <div className="text-2xl font-bold text-orange-600">
-                          {performanceData ? `${Math.round((performanceData.engagement_rate || 0) * 0.34)}%` : '3.4%'}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-purple-50 rounded-lg text-center">
-                        <div className="text-sm text-gray-600 mb-1">Click Rate</div>
-                        <div className="text-2xl font-bold text-purple-600">
-                          {performanceData ? `${Math.round((performanceData.engagement_rate || 0) * 0.28)}%` : '2.8%'}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Conversion Funnel */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Conversion Funnel</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Impressions</span>
-                          <span>{performanceData ? `${Math.round((performanceData.estimated_reach || 0) * 1.5).toLocaleString()}` : '4,200,000'}</span>
-                        </div>
-                        <Progress value={100} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Engagement</span>
-                          <span>{performanceData ? `${Math.round((performanceData.total_engagement || 0) * 0.3).toLocaleString()}` : '470,400'}</span>
-                        </div>
-                        <Progress value={11} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Clicks</span>
-                          <span>{performanceData ? `${Math.round((performanceData.total_engagement || 0) * 0.07).toLocaleString()}` : '117,600'}</span>
-                        </div>
-                        <Progress value={3} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Conversions</span>
-                          <span>{performanceData ? `${Math.round((performanceData.total_engagement || 0) * 0.03).toLocaleString()}` : '50,400'}</span>
-                        </div>
-                        <Progress value={1} className="h-2" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
 
           </Tabs>
         </div>
