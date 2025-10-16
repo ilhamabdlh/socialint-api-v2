@@ -69,6 +69,14 @@ class ScraperService:
             "shouldDownloadSubtitles": False,
         }
         
+        # Add date filtering if provided
+        if start_date:
+            run_input["startDate"] = start_date
+            print(f"📅 Filtering from date: {start_date}")
+        if end_date:
+            run_input["endDate"] = end_date
+            print(f"📅 Filtering until date: {end_date}")
+        
         print(f"⏳ Running Apify TikTok scraper with hashtags: {hashtags}")
         
         try:
@@ -152,6 +160,14 @@ class ScraperService:
             "resultsLimit": max_posts,
             "searchLimit": max_posts,
         }
+        
+        # Add date filtering if provided
+        if start_date:
+            run_input["startDate"] = start_date
+            print(f"📅 Filtering from date: {start_date}")
+        if end_date:
+            run_input["endDate"] = end_date
+            print(f"📅 Filtering until date: {end_date}")
         
         print(f"⏳ Running Apify Instagram scraper...")
         
@@ -325,6 +341,14 @@ class ScraperService:
             "searchKeywords": search_keywords,
             "maxResults": max_posts,
         }
+        
+        # Add date filtering if provided
+        if start_date:
+            run_input["startDate"] = start_date
+            print(f"📅 Filtering from date: {start_date}")
+        if end_date:
+            run_input["endDate"] = end_date
+            print(f"📅 Filtering until date: {end_date}")
         
         try:
             # Run the actor

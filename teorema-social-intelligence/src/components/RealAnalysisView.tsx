@@ -131,16 +131,21 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         const queryParams = new URLSearchParams();
         if (filters.dateRange.start) {
           queryParams.append('start_date', filters.dateRange.start);
+          console.log('📅 Start date filter:', filters.dateRange.start);
         }
         if (filters.dateRange.end) {
           queryParams.append('end_date', filters.dateRange.end);
+          console.log('📅 End date filter:', filters.dateRange.end);
         }
         if (filters.platforms.length > 0) {
           queryParams.append('platforms', filters.platforms.join(','));
+          console.log('🔧 Platform filter:', filters.platforms);
         }
         
+        console.log('🔍 Query params:', queryParams.toString());
+        
         // Load brand summary with filters
-        const summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const summaryUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         const summaryResponse = await fetch(summaryUrl);
         if (summaryResponse.ok) {
           const summaryData = await summaryResponse.json();
@@ -149,7 +154,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         
         // Load sentiment timeline with filters
         try {
-          const timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const timelineUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const timelineResponse = await fetch(timelineUrl);
           if (timelineResponse.ok) {
             const timelineData = await timelineResponse.json();
@@ -162,7 +167,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load additional data for tabs
         try {
         // Load trending topics with filters
-        const topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const topicsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         const topicsResponse = await fetch(topicsUrl);
         if (topicsResponse.ok) {
           const topicsData = await topicsResponse.json();
@@ -174,7 +179,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
         // Load engagement patterns with filters
         try {
-          const engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const engagementUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const engagementResponse = await fetch(engagementUrl);
           if (engagementResponse.ok) {
             const engagementData = await engagementResponse.json();
@@ -187,7 +192,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
         // Load performance data with filters
         try {
-          const performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const performanceUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const performanceResponse = await fetch(performanceUrl);
           if (performanceResponse.ok) {
             const performanceData = await performanceResponse.json();
@@ -199,7 +204,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         }
           
           // Load emotions data with filters
-          const emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const emotionsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const emotionsResponse = await fetch(emotionsUrl);
           if (emotionsResponse.ok) {
             const emotionsData = await emotionsResponse.json();
@@ -208,7 +213,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           }
           
           // Load demographics data with filters
-          const demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const demographicsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const demographicsResponse = await fetch(demographicsUrl);
           if (demographicsResponse.ok) {
             const demographicsData = await demographicsResponse.json();
@@ -217,7 +222,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           }
           
           // Load performance metrics with filters
-          const performanceResponse = await fetch(`https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+          const performanceResponse = await fetch(`http://localhost:8000/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
           if (performanceResponse.ok) {
             const performanceData = await performanceResponse.json();
             console.log('Performance data loaded:', performanceData);

@@ -500,6 +500,10 @@ async def get_sentiment_timeline(
             start_dt = datetime.fromisoformat(start_date) if start_date else None
             end_dt = datetime.fromisoformat(end_date) if end_date else None
             
+            print(f"🔍 Date filtering: start={start_date}, end={end_date}")
+            print(f"🔍 Parsed dates: start_dt={start_dt}, end_dt={end_dt}")
+            print(f"🔍 Original posts count: {len(posts)}")
+            
             if start_dt or end_dt:
                 filtered_posts = []
                 for p in posts:
@@ -511,7 +515,9 @@ async def get_sentiment_timeline(
                         filtered_posts.append(p)
                 if filtered_posts:
                     posts = filtered_posts
-        except:
+                    print(f"🔍 Filtered posts count: {len(posts)}")
+        except Exception as e:
+            print(f"❌ Date filtering error: {e}")
             pass
     
     # Group by date
