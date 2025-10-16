@@ -67,11 +67,16 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
     negative: item.negative_percentage || 0
   })) || [];
 
-  // Format data for charts - use real data if available
+  // Format data for charts - prioritize real data
   const chartData = realChartData.length > 0 ? realChartData : data.map(d => ({
     ...d,
     date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }));
+
+  // Use real data for trend calculations
+  const realSentimentTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.sentiment)) : sentimentTrend;
+  const realMentionsTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.mentions)) : mentionsTrend;
+  const realEngagementTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.engagement)) : engagementTrend;
 
   return (
     <div className="space-y-6">
@@ -94,6 +99,15 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
             </TabsList>
 
             <TabsContent value="sentiment" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="font-medium">Sentiment Trend</span>
+                  <Badge variant="outline" className={getTrendColor(realSentimentTrend)}>
+                    {getTrendIcon(realSentimentTrend)} {Math.abs(realSentimentTrend).toFixed(1)}%
+                  </Badge>
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -116,6 +130,15 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
             </TabsContent>
 
             <TabsContent value="mentions" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">Mentions Trend</span>
+                  <Badge variant="outline" className={getTrendColor(realMentionsTrend)}>
+                    {getTrendIcon(realMentionsTrend)} {Math.abs(realMentionsTrend).toFixed(1)}%
+                  </Badge>
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -137,6 +160,15 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
             </TabsContent>
 
             <TabsContent value="engagement" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4" />
+                  <span className="font-medium">Engagement Trend</span>
+                  <Badge variant="outline" className={getTrendColor(realEngagementTrend)}>
+                    {getTrendIcon(realEngagementTrend)} {Math.abs(realEngagementTrend).toFixed(1)}%
+                  </Badge>
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -159,6 +191,12 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
             </TabsContent>
 
             <TabsContent value="distribution" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  <span className="font-medium">Sentiment Distribution</span>
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />

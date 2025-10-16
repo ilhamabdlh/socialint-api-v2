@@ -516,7 +516,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         <div className="lg:col-span-3 space-y-6">
           {/* Time Series Charts */}
           <TimeSeriesCharts 
-            data={mockTimeSeriesData}
+            data={[]} // Use empty array to force real data usage
             title={`${getEntityTitle()} - Time Series Analysis`}
             brandSummary={brandSummary}
             performanceData={performanceData}
@@ -525,7 +525,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
           {/* Detailed Analysis Tabs */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 gap-1">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Info className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>

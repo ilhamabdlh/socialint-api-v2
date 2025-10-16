@@ -54,6 +54,7 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
   const handleFilterChange = (key: keyof FilterState, value: any) => {
     const newFilters = { ...localFilters, [key]: value };
     setLocalFilters(newFilters);
+    // Auto apply filters immediately
     onFiltersChange(newFilters);
   };
 
@@ -81,10 +82,6 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
     onFiltersChange(defaultFilters);
   };
 
-  // Apply filters to API calls
-  const applyFilters = () => {
-    onFiltersChange(localFilters);
-  };
 
   // Get available options based on entity type
   const getAvailablePlatforms = () => {
@@ -140,15 +137,10 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
             <Filter className="h-5 w-5" />
             Analysis Filters
           </CardTitle>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={resetFilters}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
-            <Button size="sm" onClick={applyFilters}>
-              Apply Filters
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={resetFilters}>
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Reset
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
