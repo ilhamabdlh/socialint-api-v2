@@ -8,7 +8,7 @@
 // Configuration
 // =============================================================================
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'https://api.staging.teoremaintelligence.com';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
 const API_PREFIX = '/api/v1';
 
 // =============================================================================
@@ -472,6 +472,20 @@ export const resultsAPI = {
     
     return fetchAPI<any>(`/results/brands/${brandName}/demographics?${params.toString()}`);
   },
+
+  /**
+   * Get engagement patterns
+   */
+  async getEngagementPatterns(
+    brandName: string,
+    platform?: string,
+    limit: number = 10000
+  ): Promise<EngagementPatterns> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (platform) params.append('platform', platform);
+    
+    return fetchAPI<EngagementPatterns>(`/results/brands/${brandName}/engagement-patterns?${params.toString()}`);
+  },
 };
 
 // =============================================================================
@@ -497,6 +511,16 @@ export const healthAPI = {
 // =============================================================================
 // Export All
 // =============================================================================
+
+// Engagement Patterns Interface
+export interface EngagementPatterns {
+  brand_name: string;
+  platform: string;
+  peak_hours: string[];
+  active_days: string[];
+  avg_engagement_rate: number;
+  total_posts: number;
+}
 
 export default {
   campaign: campaignAPI,

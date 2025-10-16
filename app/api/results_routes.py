@@ -7,10 +7,31 @@ from app.models.database import (
     PlatformType, AnalysisStatusType
 )
 from app.services.database_service import db_service
-from app.utils.data_helpers import consolidate_demographics, analyze_engagement_patterns
+from app.utils.data_helpers import consolidate_demographics, analyze_engagement_patterns, normalize_topic_labeling
 from pydantic import BaseModel
 
 router = APIRouter()
+
+# Helper function to get brand by ObjectID or name
+async def get_brand_by_identifier(brand_identifier: str):
+    """Get brand by ObjectID or brand name"""
+    brand = None
+    try:
+        # Check if it's a valid ObjectID
+        from bson import ObjectId
+        if ObjectId.is_valid(brand_identifier):
+            brand = await db_service.get_brand_by_id(brand_identifier)
+    except:
+        pass
+    
+    # If not found by ObjectID, try by name
+    if not brand:
+        brand = await db_service.get_brand(brand_identifier)
+    
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    
+    return brand
 
 # Response Models
 class BrandInfo(BaseModel):
@@ -97,12 +118,10 @@ async def list_brands():
     
     return results
 
-@router.get("/brands/{brand_name}")
-async def get_brand_details(brand_name: str):
-    """Get detailed brand information"""
-    brand = await db_service.get_brand(brand_name)
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
+@router.get("/brands/{brand_identifier}")
+async def get_brand_details(brand_identifier: str):
+    """Get detailed brand information using ObjectID or brand name"""
+    brand = await get_brand_by_identifier(brand_identifier)
     
     # Get statistics
     posts = await db_service.get_posts_by_brand(brand, limit=10000)
@@ -239,26 +258,33 @@ async def get_job_status(job_id: str):
 
 # ============= TRENDING TOPICS ENDPOINTS =============
 
-@router.get("/brands/{brand_name}/trending-topics")
+@router.get("/brands/{brand_identifier}/trending-topics")
 async def get_trending_topics(
-    brand_name: str,
+    brand_identifier: str,
     platform: Optional[PlatformType] = None,
     limit: int = 10
 ):
-    """Get trending topics for a brand"""
-    brand = await db_service.get_brand(brand_name)
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
+    """Get trending topics for a brand using ObjectID or brand name"""
+    brand = await get_brand_by_identifier(brand_identifier)
     
     # Get posts to analyze topics
     posts = await db_service.get_posts_by_brand(brand, platform, limit=10000)
     
-    # Count topics and calculate sentiment
+    # Collect all topics for normalization
+    all_topics = [post.topic for post in posts if post.topic and post.topic != 'Unknown']
+    
+    # Normalize topic labels to handle case variations
+    topic_mapping = normalize_topic_labeling(all_topics)
+    
+    # Count topics and calculate sentiment using normalized topics
     topic_counts = {}
     for post in posts:
         if post.topic and post.topic != 'Unknown':
-            if post.topic not in topic_counts:
-                topic_counts[post.topic] = {
+            # Use normalized topic
+            normalized_topic = topic_mapping.get(post.topic, post.topic)
+            
+            if normalized_topic not in topic_counts:
+                topic_counts[normalized_topic] = {
                     'count': 0,
                     'sentiment': 0,
                     'positive': 0,
@@ -267,18 +293,18 @@ async def get_trending_topics(
                     'engagement': 0
                 }
             
-            topic_counts[post.topic]['count'] += 1
-            topic_counts[post.topic]['engagement'] += post.like_count + post.comment_count + post.share_count
+            topic_counts[normalized_topic]['count'] += 1
+            topic_counts[normalized_topic]['engagement'] += post.like_count + post.comment_count + post.share_count
             
             # Sentiment scoring
             if post.sentiment == 'Positive':
-                topic_counts[post.topic]['positive'] += 1
-                topic_counts[post.topic]['sentiment'] += 1
+                topic_counts[normalized_topic]['positive'] += 1
+                topic_counts[normalized_topic]['sentiment'] += 1
             elif post.sentiment == 'Negative':
-                topic_counts[post.topic]['negative'] += 1
-                topic_counts[post.topic]['sentiment'] -= 1
+                topic_counts[normalized_topic]['negative'] += 1
+                topic_counts[normalized_topic]['sentiment'] -= 1
             else:
-                topic_counts[post.topic]['neutral'] += 1
+                topic_counts[normalized_topic]['neutral'] += 1
     
     # Sort by count and format results
     sorted_topics = sorted(topic_counts.items(), key=lambda x: x[1]['count'], reverse=True)
@@ -329,15 +355,13 @@ async def get_audience_insights(
 
 # ============= ANALYTICS/SUMMARY ENDPOINTS =============
 
-@router.get("/brands/{brand_name}/summary")
+@router.get("/brands/{brand_identifier}/summary")
 async def get_brand_summary(
-    brand_name: str,
+    brand_identifier: str,
     days: int = Query(default=30, description="Number of days to analyze")
 ):
-    """Get comprehensive brand summary"""
-    brand = await db_service.get_brand(brand_name)
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
+    """Get comprehensive brand summary using ObjectID or brand name"""
+    brand = await get_brand_by_identifier(brand_identifier)
     
     # Get posts from last N days
     cutoff_date = datetime.now() - timedelta(days=days)

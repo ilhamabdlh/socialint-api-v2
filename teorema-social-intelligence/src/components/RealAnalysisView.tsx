@@ -89,7 +89,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
   const [emotionsData, setEmotionsData] = useState<any>(null);
   const [demographicsData, setDemographicsData] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
-  const [competitiveData, setCompetitiveData] = useState<any>(null);
+  const [engagementPatterns, setEngagementPatterns] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -151,6 +151,15 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           } else {
             console.error('Failed to load trending topics:', topicsResponse.status, topicsResponse.statusText);
           }
+
+          // Load engagement patterns
+          try {
+            const engagementResponse = await resultsAPI.getEngagementPatterns(brandName);
+            setEngagementPatterns(engagementResponse);
+            console.log('Engagement patterns loaded:', engagementResponse);
+          } catch (engagementError) {
+            console.warn('Engagement patterns not available:', engagementError);
+          }
           
           // Load emotions data
           const emotionsResponse = await fetch(`http://localhost:8000/api/v1/results/brands/${brandName}/emotions`);
@@ -181,13 +190,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
             console.error('Failed to load performance data:', performanceResponse.status, performanceResponse.statusText);
           }
           
-          // Load competitive analysis
-          const competitiveResponse = await fetch(`http://localhost:8000/api/v1/results/brands/${brandName}/competitive`);
-          if (competitiveResponse.ok) {
-            const competitiveData = await competitiveResponse.json();
-            console.log('Competitive data loaded:', competitiveData);
-            setCompetitiveData(competitiveData);
-          }
           
         } catch (additionalDataError) {
           console.warn('Additional data loading failed:', additionalDataError);
@@ -535,10 +537,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               <TabsTrigger value="performance" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Performance</span>
-              </TabsTrigger>
-              <TabsTrigger value="competitive" className="flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                <span className="hidden sm:inline">Competitive</span>
               </TabsTrigger>
             </TabsList>
 
@@ -986,9 +984,15 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                     <div>
                       <h3 className="text-lg font-semibold mb-3">Peak Hours</h3>
                       <div className="flex flex-wrap gap-2">
-                        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">9:00 AM</div>
-                        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">1:00 PM</div>
-                        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">7:00 PM</div>
+                        {engagementPatterns?.peak_hours?.length > 0 ? (
+                          engagementPatterns.peak_hours.map((hour: string, index: number) => (
+                            <div key={index} className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">
+                              {hour}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-gray-500 text-sm">No data available</div>
+                        )}
                       </div>
                     </div>
 
@@ -996,9 +1000,15 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                     <div>
                       <h3 className="text-lg font-semibold mb-3">Active Days</h3>
                       <div className="flex flex-wrap gap-2">
-                        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">Monday</div>
-                        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">Wednesday</div>
-                        <div className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">Friday</div>
+                        {engagementPatterns?.active_days?.length > 0 ? (
+                          engagementPatterns.active_days.map((day: string, index: number) => (
+                            <div key={index} className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">
+                              {day}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-gray-500 text-sm">No data available</div>
+                        )}
                       </div>
                     </div>
 
@@ -1006,7 +1016,10 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                     <div>
                       <h3 className="text-lg font-semibold mb-3">Avg. Engagement Rate</h3>
                       <div className="text-3xl font-bold text-green-600">
-                        {performanceData ? `${performanceData.engagement_rate || 0}%` : '11.2%'}
+                        {engagementPatterns?.avg_engagement_rate ? 
+                          `${engagementPatterns.avg_engagement_rate}%` : 
+                          '0%'
+                        }
                       </div>
                     </div>
                   </div>
@@ -1093,180 +1106,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               </div>
             </TabsContent>
 
-            <TabsContent value="competitive" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Competitive Landscape</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {competitiveData ? (
-                    <div className="space-y-6">
-
-                      {/* Competitive Position Overview */}
-                      <div className="grid md:grid-cols-3 gap-4 mb-6">
-                        <div className="p-4 bg-blue-50 rounded-lg text-center">
-                          <div className="text-sm text-gray-600 mb-1">Market Position</div>
-                          <div className="text-lg font-semibold capitalize text-blue-600">
-                            {competitiveData.competitive_position}
-                          </div>
-                        </div>
-                        <div className="p-4 bg-green-50 rounded-lg text-center">
-                          <div className="text-sm text-gray-600 mb-1">Engagement Rate</div>
-                          <div className="text-lg font-semibold text-green-600">
-                            {competitiveData.brand_metrics?.engagement_rate?.toFixed(1)}%
-                          </div>
-                        </div>
-                        <div className="p-4 bg-orange-50 rounded-lg text-center">
-                          <div className="text-sm text-gray-600 mb-1">Sentiment Score</div>
-                          <div className={`text-lg font-semibold ${
-                            (competitiveData.brand_metrics?.sentiment_score || 0) > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {((competitiveData.brand_metrics?.sentiment_score || 0) * 100).toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Performance vs Industry Benchmarks */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Performance vs Industry Benchmarks</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          {/* Brand Metrics */}
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-base">Brand Performance</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Posts</span>
-                                  <span className="font-medium">{competitiveData.brand_metrics?.total_posts}</span>
-                                </div>
-                                <Progress value={Math.min((competitiveData.brand_metrics?.total_posts || 0) * 4, 100)} className="h-2" />
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Engagement Rate</span>
-                                  <span className="font-medium">{competitiveData.brand_metrics?.engagement_rate?.toFixed(1)}%</span>
-                                </div>
-                                <Progress value={Math.min((competitiveData.brand_metrics?.engagement_rate || 0) * 10, 100)} className="h-2" />
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Avg Engagement</span>
-                                  <span className="font-medium">
-                                    {competitiveData.brand_metrics?.avg_engagement_per_post?.toLocaleString()}
-                                  </span>
-                                </div>
-                                <Progress value={Math.min(((competitiveData.brand_metrics?.avg_engagement_per_post || 0) / 1000), 100)} className="h-2" />
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          {/* Industry Benchmarks */}
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-base">Industry Benchmarks</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Avg Posts/Month</span>
-                                  <span className="font-medium">{competitiveData.industry_benchmarks?.avg_posts_per_month}</span>
-                                </div>
-                                <Progress value={Math.min((competitiveData.industry_benchmarks?.avg_posts_per_month || 0) * 4, 100)} className="h-2" />
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Avg Engagement Rate</span>
-                                  <span className="font-medium">{competitiveData.industry_benchmarks?.avg_engagement_rate?.toFixed(1)}%</span>
-                                </div>
-                                <Progress value={Math.min((competitiveData.industry_benchmarks?.avg_engagement_rate || 0) * 10, 100)} className="h-2" />
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span>Top Performers</span>
-                                  <span className="font-medium">{competitiveData.industry_benchmarks?.top_performers_engagement?.toFixed(1)}%</span>
-                                </div>
-                                <Progress value={Math.min((competitiveData.industry_benchmarks?.top_performers_engagement || 0) * 10, 100)} className="h-2" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </div>
-
-                      {/* Competitive Insights */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Competitive Insights</h3>
-                        <div className="grid gap-4">
-                          {competitiveData.competitive_insights?.map((insight: any, index: number) => (
-                            <div key={index} className="p-4 border rounded-lg">
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-semibold capitalize">{insight.metric.replace('_', ' ')}</h4>
-                                <Badge variant={
-                                  insight.performance === 'above_average' ? 'default' : 
-                                  insight.performance === 'below_average' ? 'destructive' : 'secondary'
-                                }>
-                                  {insight.performance.replace('_', ' ')}
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <div className="text-gray-600">Brand Value</div>
-                                  <div className="font-semibold">
-                                    {insight.metric === 'sentiment_score' 
-                                      ? `${(insight.brand_value * 100).toFixed(1)}%`
-                                      : insight.brand_value
-                                    }
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-gray-600">Industry Avg</div>
-                                  <div className="font-semibold">
-                                    {insight.metric === 'sentiment_score' 
-                                      ? `${(insight.industry_average * 100).toFixed(1)}%`
-                                      : insight.industry_average
-                                    }
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-gray-600">Difference</div>
-                                  <div className={`font-semibold ${
-                                    insight.difference > 0 ? 'text-green-600' : 'text-red-600'
-                                  }`}>
-                                    {insight.difference > 0 ? '+' : ''}
-                                    {insight.metric === 'sentiment_score' 
-                                      ? `${(insight.difference * 100).toFixed(1)}%`
-                                      : insight.difference
-                                    }
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Recommendations */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Recommendations</h3>
-                        <div className="space-y-2">
-                          {competitiveData.recommendations?.map((recommendation: string, index: number) => (
-                            <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                              <span className="text-sm">{recommendation}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      Competitive analysis will be available after more data is collected
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
