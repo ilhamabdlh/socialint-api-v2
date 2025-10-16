@@ -62,7 +62,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
         selectedPlatforms: [...formData.selectedPlatforms, platform],
         platformUrls: {
           ...formData.platformUrls,
-          [platform]: formData.platformUrls[platform] || ''
+          [platform]: formData.platformUrls?.[platform] || ''
         }
       });
     } else {
@@ -184,9 +184,10 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
       
       // Parse form data - combine all platform URLs
       const allUrls: string[] = [];
-      Object.values(formData.platformUrls).forEach((urls: string) => {
-        if (urls.trim()) {
-          allUrls.push(...urls.split('\n').filter(url => url.trim()));
+      Object.values(formData.platformUrls || {}).forEach((urls: unknown) => {
+        const urlString = urls as string;
+        if (urlString.trim()) {
+          allUrls.push(...urlString.split('\n').filter(url => url.trim()));
         }
       });
       
@@ -234,6 +235,13 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
 
   const handleEdit = (campaign: Campaign) => {
     setEditingCampaign(campaign);
+    
+    // Initialize platform URLs object
+    const platformUrls: Record<string, string> = {};
+    campaign.platforms.forEach(platform => {
+      platformUrls[platform] = ''; // Initialize empty, can be enhanced to load existing URLs
+    });
+    
     setFormData({
       name: campaign.name,
       description: campaign.description,
@@ -245,7 +253,9 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
       start_date: campaign.start_date,
       end_date: campaign.end_date,
       target_audience: campaign.target_audience.join(', '),
-      platforms: campaign.platforms.join(', ')
+      platforms: campaign.platforms.join(', '),
+      selectedPlatforms: campaign.platforms || [],
+      platformUrls: platformUrls
     });
   };
 
@@ -255,13 +265,29 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     try {
       setIsLoading(true);
 
+      // Parse form data - combine all platform URLs
+      const allUrls: string[] = [];
+      Object.values(formData.platformUrls || {}).forEach((urls: unknown) => {
+        const urlString = urls as string;
+        if (urlString.trim()) {
+          allUrls.push(...urlString.split('\n').filter(url => url.trim()));
+        }
+      });
+      
+      const postUrls = allUrls.map(url => ({
+        url: url.trim(),
+        platform: 'tiktok', // Will be determined by URL analysis
+        title: formData.name
+      }));
+
       const updateData = {
         description: formData.description,
         campaign_type: formData.type,
         status: formData.status as any,
         keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
         target_audiences: formData.target_audience.split(',').map(a => a.trim()).filter(a => a),
-        platforms: formData.platforms.split(',').map(p => p.trim()).filter(p => p) as any,
+        platforms: formData.selectedPlatforms as any,
+        post_urls: postUrls,
         start_date: new Date(formData.start_date).toISOString(),
         end_date: new Date(formData.end_date).toISOString(),
         tags: [formData.type]
@@ -474,7 +500,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                       <input
                         type="checkbox"
                         id={`platform-${platform.value}`}
-                        checked={formData.selectedPlatforms.includes(platform.value)}
+                        checked={formData.selectedPlatforms?.includes(platform.value) || false}
                         onChange={(e) => handlePlatformChange(platform.value, e.target.checked)}
                         className="rounded border-gray-300"
                       />
@@ -487,7 +513,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
               </div>
 
               {/* Platform-specific URL fields */}
-              {formData.selectedPlatforms.map((platform) => {
+              {formData.selectedPlatforms?.map((platform) => {
                 const platformLabel = platformOptions.find(p => p.value === platform)?.label || platform;
                 return (
                   <div key={platform} className="space-y-2">
@@ -496,7 +522,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     </Label>
                     <Textarea
                       id={`urls-${platform}`}
-                      value={formData.platformUrls[platform] || ''}
+                      value={formData.platformUrls?.[platform] || ''}
                       onChange={(e) => handlePlatformUrlChange(platform, e.target.value)}
                       placeholder={`Enter ${platformLabel} URLs, one per line...`}
                       rows={3}
