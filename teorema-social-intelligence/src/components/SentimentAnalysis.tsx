@@ -14,7 +14,7 @@ import {
   BarChart,
   Bar
 } from "recharts";
-import { sentimentTrends } from "../lib/mock-data";
+import { sentimentTrends } from "@/lib/mock-data";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 export function SentimentAnalysis() {

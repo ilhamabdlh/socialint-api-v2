@@ -20,7 +20,7 @@ import {
   PolarRadiusAxis,
   Radar
 } from "recharts";
-import { keywordClusters } from "../lib/mock-data";
+import { keywordClusters } from "@/lib/mock-data";
 import { Hash, TrendingUp, Link, Search } from "lucide-react";
 
 export function KeywordClustering() {

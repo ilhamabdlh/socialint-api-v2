@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { Content, contents as mockContents } from "../lib/mock-data";
+import { Content, contents as mockContents } from "@/lib/mock-data";
 import { Plus, Search, Eye, Edit, Trash2, FileText, Calendar, User, ExternalLink } from "lucide-react";
 
 interface ContentManagementProps {

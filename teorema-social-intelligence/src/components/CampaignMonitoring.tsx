@@ -29,7 +29,7 @@ import {
   MessageSquare,
   Calendar
 } from "lucide-react";
-import { campaigns, Campaign } from "../lib/mock-data";
+import { campaigns, Campaign } from "@/lib/mock-data";
 
 interface CampaignMonitoringProps {
   onSelectCampaign: (campaign: Campaign) => void;

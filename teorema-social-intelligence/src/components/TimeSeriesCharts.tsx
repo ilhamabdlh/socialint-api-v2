@@ -57,15 +57,23 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
   };
 
   // Use real API data if available, otherwise fallback to mock data
-  const realChartData = sentimentTimeline?.timeline?.map((item: any) => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    sentiment: Math.round((item.avg_sentiment || 0) * 100), // Convert sentiment score to percentage
-    mentions: item.total_posts || 0,
-    engagement: (item.total_likes || 0) + (item.total_comments || 0) + (item.total_shares || 0),
-    positive: item.positive_percentage || 0,
-    neutral: item.neutral_percentage || 0,
-    negative: item.negative_percentage || 0
-  })) || [];
+  const realChartData = sentimentTimeline?.timeline?.map((item: any) => {
+    // Calculate sentiment score from positive, neutral, negative counts
+    const totalSentiment = (item.Positive || 0) + (item.Neutral || 0) + (item.Negative || 0);
+    const sentimentScore = totalSentiment > 0 
+      ? Math.round(((item.Positive || 0) - (item.Negative || 0)) / totalSentiment * 100) 
+      : 0;
+    
+    return {
+      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      sentiment: sentimentScore, // Sentiment score calculated from positive/negative ratio
+      mentions: item.total_posts || 0, // Total mentions from total_posts
+      engagement: (item.total_likes || 0) + (item.total_comments || 0) + (item.total_shares || 0), // Total engagement
+      positive: item.positive_percentage || 0, // Distribution: positive percentage
+      neutral: item.neutral_percentage || 0, // Distribution: neutral percentage
+      negative: item.negative_percentage || 0 // Distribution: negative percentage
+    };
+  }) || [];
 
   // Format data for charts - prioritize real data
   const chartData = realChartData.length > 0 ? realChartData : data.map(d => ({

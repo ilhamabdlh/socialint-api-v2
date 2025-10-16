@@ -4,7 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Progress } from "./ui/progress";
-import { Campaign, Brand, Content, AnalysisResult, analysisResults, timeSeriesData } from "../lib/mock-data";
+import { Campaign, Brand, Content, AnalysisResult, analysisResults, timeSeriesData } from "@/lib/mock-data";
 import { AnalysisFilters, FilterState } from "./AnalysisFilters";
 import { TimeSeriesCharts } from "./TimeSeriesCharts";
 import { EntityDetails } from "./EntityDetails";

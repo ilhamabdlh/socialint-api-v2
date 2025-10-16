@@ -15,7 +15,7 @@ import {
   ScatterChart,
   Scatter
 } from "recharts";
-import { topicAnalysis } from "../lib/mock-data";
+import { topicAnalysis } from "@/lib/mock-data";
 import { TrendingUp, TrendingDown, Minus, MessageCircle, Hash } from "lucide-react";
 
 export function TopicAnalysis() {

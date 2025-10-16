@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { TrendingUp, TrendingDown, Users, MessageSquare, Globe } from "lucide-react";
-import { overviewMetrics, recentAlerts } from "../lib/mock-data";
+import { overviewMetrics, recentAlerts } from "@/lib/mock-data";
 
 export function DashboardOverview() {
   const getSentimentColor = (sentiment: number) => {

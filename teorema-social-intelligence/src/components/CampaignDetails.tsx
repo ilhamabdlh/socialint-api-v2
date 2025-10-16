@@ -36,7 +36,7 @@ import {
   Pause,
   Edit
 } from "lucide-react";
-import { Campaign } from "../lib/mock-data";
+import { Campaign } from "@/lib/mock-data";
 
 interface CampaignDetailsProps {
   campaign: Campaign;

@@ -262,13 +262,44 @@ async def get_job_status(job_id: str):
 async def get_trending_topics(
     brand_identifier: str,
     platform: Optional[PlatformType] = None,
-    limit: int = 10
+    limit: int = 10,
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
-    """Get trending topics for a brand using ObjectID or brand name"""
+    """Get trending topics for a brand using ObjectID or brand name with filtering"""
     brand = await get_brand_by_identifier(brand_identifier)
+    
+    # Parse platform filter
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+            platform = platform_list[0] if platform_list else platform
+        except:
+            pass
     
     # Get posts to analyze topics
     posts = await db_service.get_posts_by_brand(brand, platform, limit=10000)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                filtered_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        filtered_posts.append(p)
+                if filtered_posts:
+                    posts = filtered_posts
+        except:
+            pass
     
     # Collect all topics for normalization
     all_topics = [post.topic for post in posts if post.topic and post.topic != 'Unknown']
@@ -359,26 +390,57 @@ async def get_audience_insights(
 @router.get("/brands/{brand_identifier}/summary")
 async def get_brand_summary(
     brand_identifier: str,
-    days: int = Query(default=30, description="Number of days to analyze")
+    days: int = Query(default=30, description="Number of days to analyze"),
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
-    """Get comprehensive brand summary using ObjectID or brand name"""
+    """Get comprehensive brand summary using ObjectID or brand name with filtering"""
     brand = await get_brand_by_identifier(brand_identifier)
     
-    # Get posts from last N days
-    cutoff_date = datetime.now() - timedelta(days=days)
-    posts = await db_service.get_posts_by_brand(brand, limit=10000)
+    # Parse platform filter
+    platform_list = None
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+        except:
+            pass
     
-    # Filter by date if posted_at is available
-    recent_posts = [p for p in posts if p.posted_at and p.posted_at >= cutoff_date]
-    if not recent_posts:
-        recent_posts = posts  # Use all if no dates available
+    # Get posts with platform filter
+    posts = await db_service.get_posts_by_brand(brand, platform=platform_list[0] if platform_list and len(platform_list) > 0 else None, limit=10000)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                recent_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        recent_posts.append(p)
+                if recent_posts:
+                    posts = recent_posts
+        except:
+            pass
+    else:
+        # Use days parameter if no date range specified
+        cutoff_date = datetime.now() - timedelta(days=days)
+        recent_posts = [p for p in posts if p.posted_at and p.posted_at >= cutoff_date]
+        if recent_posts:
+            posts = recent_posts
     
     # Calculate metrics
-    total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in recent_posts)
-    avg_engagement = total_engagement / len(recent_posts) if recent_posts else 0
+    total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in posts)
+    avg_engagement = total_engagement / len(posts) if posts else 0
     
     sentiment_dist = {"Positive": 0, "Negative": 0, "Neutral": 0}
-    for post in recent_posts:
+    for post in posts:
         if post.sentiment:
             sentiment_dist[post.sentiment] += 1
     
@@ -387,18 +449,18 @@ async def get_brand_summary(
     
     # Platform breakdown
     platform_breakdown = {}
-    for post in recent_posts:
+    for post in posts:
         platform_breakdown[post.platform.value] = platform_breakdown.get(post.platform.value, 0) + 1
     
     return {
         "brand_name": brand.name,
-        "period": f"Last {days} days",
-        "total_posts": len(recent_posts),
+        "period": f"Last {days} days" if not (start_date or end_date) else f"{start_date or 'start'} to {end_date or 'end'}",
+        "total_posts": len(posts),
         "total_engagement": total_engagement,
         "avg_engagement_per_post": round(avg_engagement, 2),
         "sentiment_distribution": sentiment_dist,
         "sentiment_percentage": {
-            k: round(v / len(recent_posts) * 100, 1) if recent_posts else 0
+            k: round(v / len(posts) * 100, 1) if posts else 0
             for k, v in sentiment_dist.items()
         },
         "platform_breakdown": platform_breakdown,
@@ -412,14 +474,45 @@ async def get_brand_summary(
 async def get_sentiment_timeline(
     brand_name: str,
     platform: Optional[PlatformType] = None,
-    days: int = Query(default=30)
+    days: int = Query(default=30),
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
-    """Get sentiment timeline (daily breakdown)"""
+    """Get sentiment timeline (daily breakdown) with filtering"""
     brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
+    # Parse platform filter
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+            platform = platform_list[0] if platform_list else platform
+        except:
+            pass
+    
     posts = await db_service.get_posts_by_brand(brand, platform, limit=10000)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                filtered_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        filtered_posts.append(p)
+                if filtered_posts:
+                    posts = filtered_posts
+        except:
+            pass
     
     # Group by date
     timeline = {}
@@ -511,17 +604,48 @@ async def get_sentiment_timeline(
 async def get_emotions_analysis(
     brand_name: str,
     platform: Optional[PlatformType] = None,
-    limit: int = Query(default=10000)
+    limit: int = Query(default=10000),
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get emotions analysis for a brand
+    Get emotions analysis for a brand with filtering
     Returns distribution of emotions: joy, anger, sadness, fear, surprise, disgust, trust, anticipation
     """
     brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
+    # Parse platform filter
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+            platform = platform_list[0] if platform_list else platform
+        except:
+            pass
+    
     posts = await db_service.get_posts_by_brand(brand, platform, limit=limit)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                filtered_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        filtered_posts.append(p)
+                if filtered_posts:
+                    posts = filtered_posts
+        except:
+            pass
     
     # Count emotions
     emotions_count = {}
@@ -554,17 +678,48 @@ async def get_emotions_analysis(
 async def get_demographics_analysis(
     brand_name: str,
     platform: Optional[PlatformType] = None,
-    limit: int = Query(default=10000)
+    limit: int = Query(default=10000),
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get demographics analysis for a brand's audience
+    Get demographics analysis for a brand's audience with filtering
     Returns age groups, gender distribution, and location insights
     """
     brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
+    # Parse platform filter
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+            platform = platform_list[0] if platform_list else platform
+        except:
+            pass
+    
     posts = await db_service.get_posts_by_brand(brand, platform, limit=limit)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                filtered_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        filtered_posts.append(p)
+                if filtered_posts:
+                    posts = filtered_posts
+        except:
+            pass
     
     # Prepare demographics data for consolidation
     demographics_data = []
@@ -617,17 +772,48 @@ async def get_demographics_analysis(
 async def get_engagement_patterns(
     brand_name: str,
     platform: Optional[PlatformType] = None,
-    limit: int = Query(default=10000)
+    limit: int = Query(default=10000),
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get engagement patterns analysis for a brand
+    Get engagement patterns analysis for a brand with filtering
     Returns peak hours, active days, and average engagement rate
     """
     brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
+    # Parse platform filter
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+            platform = platform_list[0] if platform_list else platform
+        except:
+            pass
+    
     posts = await db_service.get_posts_by_brand(brand, platform, limit=limit)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                filtered_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        filtered_posts.append(p)
+                if filtered_posts:
+                    posts = filtered_posts
+        except:
+            pass
     
     if not posts:
         return {
@@ -669,17 +855,54 @@ async def get_engagement_patterns(
 async def get_performance_metrics(
     brand_name: str,
     platform: Optional[PlatformType] = None,
-    days: int = Query(default=30)
+    days: int = Query(default=30),
+    start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
+    platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get performance metrics for a brand
+    Get performance metrics for a brand with filtering
     Returns engagement rates, reach, and other performance indicators
     """
     brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
+    # Parse platform filter
+    if platforms:
+        try:
+            platform_list = [PlatformType(p.strip().lower()) for p in platforms.split(',')]
+            platform = platform_list[0] if platform_list else platform
+        except:
+            pass
+    
     posts = await db_service.get_posts_by_brand(brand, platform, limit=10000)
+    
+    # Filter by date range
+    if start_date or end_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date) if start_date else None
+            end_dt = datetime.fromisoformat(end_date) if end_date else None
+            
+            if start_dt or end_dt:
+                filtered_posts = []
+                for p in posts:
+                    if p.posted_at:
+                        if start_dt and p.posted_at < start_dt:
+                            continue
+                        if end_dt and p.posted_at > end_dt:
+                            continue
+                        filtered_posts.append(p)
+                if filtered_posts:
+                    posts = filtered_posts
+        except:
+            pass
+    else:
+        # Use days parameter if no date range specified
+        cutoff_date = datetime.now() - timedelta(days=days)
+        recent_posts = [p for p in posts if p.posted_at and p.posted_at >= cutoff_date]
+        if recent_posts:
+            posts = recent_posts
     
     # Calculate performance metrics
     total_posts = len(posts)

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { Brand, brands as mockBrands } from "../lib/mock-data";
+import { Brand, brands as mockBrands } from "@/lib/mock-data";
 import { Plus, Search, Eye, Edit, Trash2, Building2, Tag, Users } from "lucide-react";
 
 interface BrandManagementProps {

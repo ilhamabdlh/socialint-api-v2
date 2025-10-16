@@ -13,7 +13,7 @@ import {
   RadialBar,
   Legend
 } from "recharts";
-import { socialMetrics } from "../lib/mock-data";
+import { socialMetrics } from "@/lib/mock-data";
 import { TrendingUp, TrendingDown, MessageSquare, Heart, Share2 } from "lucide-react";
 
 export function SocialMediaMetrics() {

@@ -3,7 +3,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { AlertCircle, Eye, EyeOff, Sparkles } from "lucide-react";
 import logoSocialInt from "../../assets/logo_socialint.png";
-import { credentials } from "../lib/credentials";
+import { credentials } from "@/lib/credentials";
 
 interface LoginProps {
   onLogin: (username: string, name: string) => void;

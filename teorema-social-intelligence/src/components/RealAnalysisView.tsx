@@ -216,8 +216,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
             setDemographicsData(demographicsData);
           }
           
-          // Load performance metrics
-          const performanceResponse = await fetch(`http://localhost:8000/api/v1/results/brands/${brandName}/performance`);
+          // Load performance metrics with filters
+          const performanceResponse = await fetch(`http://localhost:8000/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
           if (performanceResponse.ok) {
             const performanceData = await performanceResponse.json();
             console.log('Performance data loaded:', performanceData);
