@@ -486,6 +486,20 @@ export const resultsAPI = {
     
     return fetchAPI<EngagementPatterns>(`/results/brands/${brandName}/engagement-patterns?${params.toString()}`);
   },
+
+  /**
+   * Get performance metrics
+   */
+  async getPerformance(
+    brandName: string,
+    platform?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (platform) params.append('platform', platform);
+    
+    return fetchAPI<any>(`/results/brands/${brandName}/performance?${params.toString()}`);
+  },
 };
 
 // =============================================================================
