@@ -470,7 +470,14 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Engagement Rate</p>
-                <p className="text-2xl font-bold">{performanceData ? performanceData.engagement_rate?.toFixed(1) : (safeData.total_posts > 0 ? ((safeData.total_engagement / safeData.total_posts) * 100).toFixed(1) : 0)}%</p>
+                <p className="text-2xl font-bold">
+                  {performanceData?.engagement_rate ? 
+                    `${performanceData.engagement_rate.toFixed(1)}%` : 
+                    safeData.total_posts > 0 ? 
+                      `${((safeData.total_engagement / safeData.total_posts) * 100).toFixed(1)}%` : 
+                      '0%'
+                  }
+                </p>
               </div>
               <div className="p-2 rounded-lg bg-green-100">
                 <Heart className="h-5 w-5 text-green-600" />
@@ -525,24 +532,24 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
           {/* Detailed Analysis Tabs */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="overview" className="flex items-center gap-2">
+            <TabsList className="flex w-full justify-start space-x-1">
+              <TabsTrigger value="overview" className="flex items-center gap-2 px-4 py-2">
                 <Info className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>
               </TabsTrigger>
-              <TabsTrigger value="sentiment" className="flex items-center gap-2">
+              <TabsTrigger value="sentiment" className="flex items-center gap-2 px-4 py-2">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden sm:inline">Sentiment</span>
               </TabsTrigger>
-              <TabsTrigger value="topics" className="flex items-center gap-2">
+              <TabsTrigger value="topics" className="flex items-center gap-2 px-4 py-2">
                 <MessageSquare className="h-4 w-4" />
                 <span className="hidden sm:inline">Topics</span>
               </TabsTrigger>
-              <TabsTrigger value="emotions" className="flex items-center gap-2">
+              <TabsTrigger value="emotions" className="flex items-center gap-2 px-4 py-2">
                 <Heart className="h-4 w-4" />
                 <span className="hidden sm:inline">Emotions</span>
               </TabsTrigger>
-              <TabsTrigger value="audience" className="flex items-center gap-2">
+              <TabsTrigger value="audience" className="flex items-center gap-2 px-4 py-2">
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Audience</span>
               </TabsTrigger>
