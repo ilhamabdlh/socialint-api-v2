@@ -1133,13 +1133,31 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       <div className="p-4 bg-blue-50 rounded-lg text-center">
                         <div className="text-sm text-gray-600 mb-1">Total Reach</div>
                         <div className="text-2xl font-bold text-blue-600">
-                          {performanceData ? `${Math.round((performanceData.estimated_reach || 0) / 1000000)}M` : '2.8M'}
+                          {(() => {
+                            const reach = performanceData?.estimated_reach || 0;
+                            if (reach >= 1000000) {
+                              return `${(reach / 1000000).toFixed(1)}M`;
+                            } else if (reach >= 1000) {
+                              return `${(reach / 1000).toFixed(1)}K`;
+                            } else {
+                              return reach.toLocaleString();
+                            }
+                          })()}
                         </div>
                       </div>
                       <div className="p-4 bg-green-50 rounded-lg text-center">
                         <div className="text-sm text-gray-600 mb-1">Impressions</div>
                         <div className="text-2xl font-bold text-green-600">
-                          {performanceData ? `${Math.round((performanceData.estimated_reach || 0) * 1.5 / 1000000)}M` : '4.2M'}
+                          {(() => {
+                            const impressions = performanceData?.total_engagement || 0;
+                            if (impressions >= 1000000) {
+                              return `${(impressions / 1000000).toFixed(1)}M`;
+                            } else if (impressions >= 1000) {
+                              return `${(impressions / 1000).toFixed(1)}K`;
+                            } else {
+                              return impressions.toLocaleString();
+                            }
+                          })()}
                         </div>
                       </div>
                       <div className="p-4 bg-orange-50 rounded-lg text-center">
@@ -1168,30 +1186,30 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Impressions</span>
-                          <span>{performanceData ? `${Math.round((performanceData.estimated_reach || 0) * 1.5).toLocaleString()}` : '4,200,000'}</span>
+                          <span>{performanceData ? performanceData.total_engagement?.toLocaleString() || '0' : '0'}</span>
                         </div>
                         <Progress value={100} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Engagement</span>
-                          <span>{performanceData ? `${Math.round((performanceData.total_engagement || 0) * 0.3).toLocaleString()}` : '470,400'}</span>
+                          <span>{performanceData ? Math.round((performanceData.total_engagement || 0) * 0.8).toLocaleString() : '0'}</span>
                         </div>
-                        <Progress value={11} className="h-2" />
+                        <Progress value={80} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Clicks</span>
-                          <span>{performanceData ? `${Math.round((performanceData.total_engagement || 0) * 0.07).toLocaleString()}` : '117,600'}</span>
+                          <span>{performanceData ? Math.round((performanceData.total_engagement || 0) * 0.3).toLocaleString() : '0'}</span>
                         </div>
-                        <Progress value={3} className="h-2" />
+                        <Progress value={30} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Conversions</span>
-                          <span>{performanceData ? `${Math.round((performanceData.total_engagement || 0) * 0.03).toLocaleString()}` : '50,400'}</span>
+                          <span>{performanceData ? Math.round((performanceData.total_engagement || 0) * 0.1).toLocaleString() : '0'}</span>
                         </div>
-                        <Progress value={1} className="h-2" />
+                        <Progress value={10} className="h-2" />
                       </div>
                     </div>
                   </CardContent>
