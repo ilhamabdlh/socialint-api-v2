@@ -281,15 +281,28 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
     trending_topics: data.trending_topics || []
   };
 
-  // Prepare chart data dengan nilai 0 untuk data kosong
+  // Prepare chart data dengan nilai 0 untuk data kosong - use filtered data
   const sentimentData = [
-    { name: 'Positive', value: safeData.sentiment_percentage.Positive, color: '#22c55e' },
-    { name: 'Neutral', value: safeData.sentiment_percentage.Neutral, color: '#6b7280' },
-    { name: 'Negative', value: safeData.sentiment_percentage.Negative, color: '#ef4444' }
+    { 
+      name: 'Positive', 
+      value: brandSummary ? brandSummary.sentiment_percentage?.Positive || 0 : safeData.sentiment_percentage.Positive, 
+      color: '#22c55e' 
+    },
+    { 
+      name: 'Neutral', 
+      value: brandSummary ? brandSummary.sentiment_percentage?.Neutral || 0 : safeData.sentiment_percentage.Neutral, 
+      color: '#6b7280' 
+    },
+    { 
+      name: 'Negative', 
+      value: brandSummary ? brandSummary.sentiment_percentage?.Negative || 0 : safeData.sentiment_percentage.Negative, 
+      color: '#ef4444' 
+    }
   ];
 
 
-  const topicData = safeData.trending_topics.map(topic => ({
+  // Use filtered trending topics data
+  const topicData = (brandSummary ? brandSummary.trending_topics : safeData.trending_topics).map(topic => ({
     name: topic.topic,
     mentions: topic.count || 0,
     sentiment: Math.round((topic.sentiment || 0) * 100)
@@ -332,8 +345,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
     return 'bg-red-100';
   };
 
-  // Calculate overall sentiment score dengan default 0
-  const overallSentiment = Math.round(safeData.sentiment_percentage.Positive);
+  // Calculate overall sentiment score dengan default 0 - use filtered data
+  const overallSentiment = brandSummary ? Math.round(brandSummary.sentiment_percentage?.Positive || 0) : Math.round(safeData.sentiment_percentage.Positive);
 
   // Mock analysis data untuk kompatibilitas dengan struktur lama
   const mockAnalysis = {
@@ -483,7 +496,9 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Mentions</p>
-                <p className="text-2xl font-bold">{safeData.total_posts.toLocaleString()}</p>
+                <p className="text-2xl font-bold">
+                  {brandSummary ? brandSummary.total_posts?.toLocaleString() || '0' : safeData.total_posts.toLocaleString()}
+                </p>
               </div>
               <div className="p-2 rounded-lg bg-blue-100">
                 <MessageSquare className="h-5 w-5 text-blue-600" />
@@ -500,9 +515,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                 <p className="text-2xl font-bold">
                   {performanceData?.engagement_rate ? 
                     `${performanceData.engagement_rate.toFixed(1)}%` : 
-                    safeData.total_posts > 0 ? 
-                      `${((safeData.total_engagement / safeData.total_posts) * 100).toFixed(1)}%` : 
-                      '0%'
+                    brandSummary && brandSummary.total_posts > 0 ? 
+                      `${((brandSummary.total_engagement / brandSummary.total_posts) * 100).toFixed(1)}%` : 
+                      safeData.total_posts > 0 ? 
+                        `${((safeData.total_engagement / safeData.total_posts) * 100).toFixed(1)}%` : 
+                        '0%'
                   }
                 </p>
               </div>
@@ -519,11 +536,16 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               <div>
                 <p className="text-sm text-muted-foreground">Reach</p>
                 <p className="text-2xl font-bold">
-                  {safeData.total_engagement > 1000000 
-                    ? `${(safeData.total_engagement / 1000000).toFixed(1)}M`
-                    : safeData.total_engagement > 1000
-                    ? `${(safeData.total_engagement / 1000).toFixed(1)}K`
-                    : safeData.total_engagement.toLocaleString()}
+                  {(() => {
+                    const engagement = brandSummary ? brandSummary.total_engagement : safeData.total_engagement;
+                    if (engagement > 1000000) {
+                      return `${(engagement / 1000000).toFixed(1)}M`;
+                    } else if (engagement > 1000) {
+                      return `${(engagement / 1000).toFixed(1)}K`;
+                    } else {
+                      return engagement.toLocaleString();
+                    }
+                  })()}
                 </p>
               </div>
               <div className="p-2 rounded-lg bg-purple-100">
@@ -649,15 +671,21 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                     <div className="space-y-3 pt-4">
                       <div className="flex justify-between text-sm">
                         <span>Positive</span>
-                        <span className="text-green-600 font-semibold">{safeData.sentiment_percentage.Positive}%</span>
+                        <span className="text-green-600 font-semibold">
+                          {brandSummary ? brandSummary.sentiment_percentage?.Positive || 0 : safeData.sentiment_percentage.Positive}%
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Neutral</span>
-                        <span className="text-gray-500 font-semibold">{safeData.sentiment_percentage.Neutral}%</span>
+                        <span className="text-gray-500 font-semibold">
+                          {brandSummary ? brandSummary.sentiment_percentage?.Neutral || 0 : safeData.sentiment_percentage.Neutral}%
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Negative</span>
-                        <span className="text-red-600 font-semibold">{safeData.sentiment_percentage.Negative}%</span>
+                        <span className="text-red-600 font-semibold">
+                          {brandSummary ? brandSummary.sentiment_percentage?.Negative || 0 : safeData.sentiment_percentage.Negative}%
+                        </span>
                       </div>
                     </div>
                   </CardContent>
