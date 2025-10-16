@@ -294,7 +294,8 @@ async def get_trending_topics(
                 }
             
             topic_counts[normalized_topic]['count'] += 1
-            topic_counts[normalized_topic]['engagement'] += post.like_count + post.comment_count + post.share_count
+            engagement_value = (post.like_count or 0) + (post.comment_count or 0) + (post.share_count or 0)
+            topic_counts[normalized_topic]['engagement'] += engagement_value
             
             # Sentiment scoring
             if post.sentiment == 'Positive':
@@ -573,7 +574,8 @@ async def get_demographics_analysis(
     for post in posts:
         demographics_data.append({
             'age_group': post.author_age_group,
-            'gender': post.author_gender
+            'gender': post.author_gender,
+            'location_hint': post.author_location_hint
         })
         
         if post.author_location_hint and post.author_location_hint != 'unknown':

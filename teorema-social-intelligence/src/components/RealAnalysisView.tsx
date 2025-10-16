@@ -139,23 +139,30 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           queryParams.append('platforms', filters.platforms.join(','));
         }
         
-        // Load brand summary
-        const summaryResponse = await resultsAPI.getBrandSummary(brandName);
-        setBrandSummary(summaryResponse);
+        // Load brand summary with filters
+        const summaryUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const summaryResponse = await fetch(summaryUrl);
+        if (summaryResponse.ok) {
+          const summaryData = await summaryResponse.json();
+          setBrandSummary(summaryData);
+        }
         
-        // Load sentiment timeline
+        // Load sentiment timeline with filters
         try {
-          const timelineResponse = await resultsAPI.getSentimentTimeline(brandName, filters.platforms.length > 0 ? filters.platforms[0] : undefined);
-          setSentimentTimeline(timelineResponse);
+          const timelineUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const timelineResponse = await fetch(timelineUrl);
+          if (timelineResponse.ok) {
+            const timelineData = await timelineResponse.json();
+            setSentimentTimeline(timelineData);
+          }
         } catch (timelineError) {
           console.warn('Timeline data not available:', timelineError);
-          // Timeline data tidak tersedia, tidak perlu error
         }
         
         // Load additional data for tabs
         try {
-        // Load trending topics
-        const topicsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/trending-topics${filters.platforms.length > 0 ? `?platform=${filters.platforms[0]}` : ''}`;
+        // Load trending topics with filters
+        const topicsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         const topicsResponse = await fetch(topicsUrl);
         if (topicsResponse.ok) {
           const topicsData = await topicsResponse.json();
@@ -165,26 +172,34 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           console.error('Failed to load trending topics:', topicsResponse.status, topicsResponse.statusText);
         }
 
-        // Load engagement patterns
+        // Load engagement patterns with filters
         try {
-          const engagementResponse = await resultsAPI.getEngagementPatterns(brandName, filters.platforms.length > 0 ? filters.platforms[0] : undefined);
-          setEngagementPatterns(engagementResponse);
-          console.log('Engagement patterns loaded:', engagementResponse);
+          const engagementUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const engagementResponse = await fetch(engagementUrl);
+          if (engagementResponse.ok) {
+            const engagementData = await engagementResponse.json();
+            setEngagementPatterns(engagementData);
+            console.log('Engagement patterns loaded:', engagementData);
+          }
         } catch (engagementError) {
           console.warn('Engagement patterns not available:', engagementError);
         }
 
-        // Load performance data
+        // Load performance data with filters
         try {
-          const performanceResponse = await resultsAPI.getPerformance(brandName, filters.platforms.length > 0 ? filters.platforms[0] : undefined);
-          setPerformanceData(performanceResponse);
-          console.log('Performance data loaded:', performanceResponse);
+          const performanceUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          const performanceResponse = await fetch(performanceUrl);
+          if (performanceResponse.ok) {
+            const performanceData = await performanceResponse.json();
+            setPerformanceData(performanceData);
+            console.log('Performance data loaded:', performanceData);
+          }
         } catch (performanceError) {
           console.warn('Performance data not available:', performanceError);
         }
           
-          // Load emotions data
-          const emotionsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/emotions${filters.platforms.length > 0 ? `?platform=${filters.platforms[0]}` : ''}`;
+          // Load emotions data with filters
+          const emotionsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const emotionsResponse = await fetch(emotionsUrl);
           if (emotionsResponse.ok) {
             const emotionsData = await emotionsResponse.json();
@@ -192,8 +207,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
             setEmotionsData(emotionsData);
           }
           
-          // Load demographics data
-          const demographicsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/demographics${filters.platforms.length > 0 ? `?platform=${filters.platforms[0]}` : ''}`;
+          // Load demographics data with filters
+          const demographicsUrl = `http://localhost:8000/api/v1/results/brands/${brandName}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           const demographicsResponse = await fetch(demographicsUrl);
           if (demographicsResponse.ok) {
             const demographicsData = await demographicsResponse.json();
