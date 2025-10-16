@@ -112,7 +112,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     return maxDate.toISOString().split('T')[0];
   };
 
-  // Validate date range (max 1 year)
+  // Validate date range (max 1 year from today)
   const validateDateRange = (startDate: string, endDate: string) => {
     if (!startDate || !endDate) return { isValid: false, message: 'Please select both start and end dates' };
     
@@ -120,22 +120,17 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     const end = new Date(endDate);
     const today = new Date();
     
-    // Check if start date is in the past
-    if (start < today) {
-      return { isValid: false, message: 'Start date cannot be in the past' };
-    }
-    
     // Check if end date is before start date
-    if (end <= start) {
-      return { isValid: false, message: 'End date must be after start date' };
+    if (end < start) {
+      return { isValid: false, message: 'End date must be on or after start date' };
     }
     
-    // Check if date range is more than 1 year
-    const oneYearFromStart = new Date(start);
-    oneYearFromStart.setFullYear(oneYearFromStart.getFullYear() + 1);
+    // Check if date range is more than 1 year from today
+    const oneYearFromToday = new Date(today);
+    oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
     
-    if (end > oneYearFromStart) {
-      return { isValid: false, message: 'Date range cannot exceed 1 year' };
+    if (end > oneYearFromToday) {
+      return { isValid: false, message: 'End date cannot be more than 1 year from today' };
     }
     
     return { isValid: true, message: '' };
@@ -597,7 +592,6 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     value={formData.start_date}
                     onChange={(e) => handleDateChange('start_date', e.target.value)}
                     max={getMaxDate()}
-                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div className="space-y-2">
@@ -608,7 +602,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     value={formData.end_date}
                     onChange={(e) => handleDateChange('end_date', e.target.value)}
                     max={getMaxDate()}
-                    min={formData.start_date || new Date().toISOString().split('T')[0]}
+                    min={formData.start_date}
                   />
                 </div>
               </div>
