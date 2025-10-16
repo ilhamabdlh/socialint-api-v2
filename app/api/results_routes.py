@@ -546,28 +546,13 @@ async def get_sentiment_timeline(
                 else:
                     timeline[date_key]["Neutral"] += 1
     
-    # Generate timeline for the last N days if no data exists
+    # Return empty timeline if no data exists - no mock data generation
     if not timeline:
-        from datetime import date
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days-1)
-        
-        current_date = start_date
-        while current_date <= end_date:
-            date_key = current_date.isoformat()
-            # Generate mock data for demonstration
-            import random
-            base_posts = random.randint(5, 25)
-            timeline[date_key] = {
-                "Positive": random.randint(2, base_posts-2),
-                "Negative": random.randint(1, 3),
-                "Neutral": base_posts - random.randint(2, base_posts-2) - random.randint(1, 3),
-                "total_posts": base_posts,
-                "total_likes": random.randint(50, 500),
-                "total_comments": random.randint(5, 50),
-                "total_shares": random.randint(2, 20)
-            }
-            current_date += timedelta(days=1)
+        return {
+            "brand_name": brand.name,
+            "platform": platform.value if platform else "all",
+            "timeline": []
+        }
     
     # Sort by date and fill missing dates
     sorted_timeline = sorted(timeline.items(), key=lambda x: x[0])

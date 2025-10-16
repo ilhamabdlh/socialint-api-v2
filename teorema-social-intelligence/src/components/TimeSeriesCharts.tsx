@@ -75,16 +75,13 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
     };
   }) || [];
 
-  // Format data for charts - prioritize real data
-  const chartData = realChartData.length > 0 ? realChartData : data.map(d => ({
-    ...d,
-    date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }));
+  // Use only real data - no fallback to mock data
+  const chartData = realChartData;
 
   // Use real data for trend calculations
-  const realSentimentTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.sentiment)) : sentimentTrend;
-  const realMentionsTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.mentions)) : mentionsTrend;
-  const realEngagementTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.engagement)) : engagementTrend;
+  const realSentimentTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.sentiment)) : 0;
+  const realMentionsTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.mentions)) : 0;
+  const realEngagementTrend = realChartData.length > 0 ? calculateTrend(realChartData.map(d => d.engagement)) : 0;
 
   return (
     <div className="space-y-6">
@@ -116,25 +113,35 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
                   </Badge>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, 'Sentiment Score']}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="sentiment" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip 
+                      formatter={(value) => [`${value}%`, 'Sentiment Score']}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="sentiment" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <div className="text-center">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No sentiment data available</p>
+                    <p className="text-sm">Try adjusting your date range or platform filters</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="mentions" className="space-y-4">
@@ -147,24 +154,34 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
                   </Badge>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value) => [value, 'Mentions']}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="mentions" 
-                    stroke="#22c55e" 
-                    fill="#22c55e" 
-                    fillOpacity={0.3}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => [value, 'Mentions']}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="mentions" 
+                      stroke="#22c55e" 
+                      fill="#22c55e" 
+                      fillOpacity={0.3}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <div className="text-center">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No mentions data available</p>
+                    <p className="text-sm">Try adjusting your date range or platform filters</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="engagement" className="space-y-4">
@@ -177,25 +194,35 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
                   </Badge>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value) => [value.toLocaleString(), 'Total Engagement']}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="engagement" 
-                    stroke="#f59e0b" 
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => [value.toLocaleString(), 'Total Engagement']}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="engagement" 
+                      stroke="#f59e0b" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <div className="text-center">
+                    <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No engagement data available</p>
+                    <p className="text-sm">Try adjusting your date range or platform filters</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="distribution" className="space-y-4">
@@ -205,20 +232,30 @@ export function TimeSeriesCharts({ data, title = "Time Series Analysis", brandSu
                   <span className="font-medium">Sentiment Distribution</span>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip 
-                    formatter={(value, name) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Bar dataKey="positive" stackId="sentiment" fill="#22c55e" name="positive" />
-                  <Bar dataKey="neutral" stackId="sentiment" fill="#6b7280" name="neutral" />
-                  <Bar dataKey="negative" stackId="sentiment" fill="#ef4444" name="negative" />
-                </ComposedChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip 
+                      formatter={(value, name) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Bar dataKey="positive" stackId="sentiment" fill="#22c55e" name="positive" />
+                    <Bar dataKey="neutral" stackId="sentiment" fill="#6b7280" name="neutral" />
+                    <Bar dataKey="negative" stackId="sentiment" fill="#ef4444" name="negative" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <div className="text-center">
+                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No distribution data available</p>
+                    <p className="text-sm">Try adjusting your date range or platform filters</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
