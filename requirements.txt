@@ -15,4 +15,5 @@ beanie
 apscheduler==3.10.4
 pytz
 apify-client
+aiohttp
 
