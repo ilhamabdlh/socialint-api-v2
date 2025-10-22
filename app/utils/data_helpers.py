@@ -359,11 +359,11 @@ def analyze_engagement_patterns(df: pd.DataFrame) -> Dict[str, Any]:
             'avg_engagement_rate': 0.0
         }
     
-    # Calculate engagement rate for each post
+    # Calculate total engagement for each post
     if 'like_count' in df.columns and 'comment_count' in df.columns and 'share_count' in df.columns:
-        df['engagement_rate'] = (df['like_count'] + df['comment_count'] + df['share_count']) / df.get('view_count', 1)
+        df['total_engagement'] = df['like_count'] + df['comment_count'] + df['share_count']
     else:
-        df['engagement_rate'] = 0
+        df['total_engagement'] = 0
     
     # Extract time patterns if timestamp is available
     peak_hours = []
@@ -379,26 +379,27 @@ def analyze_engagement_patterns(df: pd.DataFrame) -> Dict[str, Any]:
         
         # Find peak hours (top 3 hours with highest engagement)
         if not df['hour'].isna().all():
-            hour_engagement = df.groupby('hour')['engagement_rate'].mean().sort_values(ascending=False)
+            hour_engagement = df.groupby('hour')['total_engagement'].mean().sort_values(ascending=False)
             peak_hours = [f"{int(hour):02d}:00" for hour in hour_engagement.head(3).index if not pd.isna(hour)]
         
         # Find active days (top 3 days with highest engagement)
         if not df['day_of_week'].isna().all():
-            day_engagement = df.groupby('day_of_week')['engagement_rate'].mean().sort_values(ascending=False)
+            day_engagement = df.groupby('day_of_week')['total_engagement'].mean().sort_values(ascending=False)
             active_days = day_engagement.head(3).index.tolist()
     else:
-        # Fallback: generate sample data if no timestamp available
-        import random
-        peak_hours = [f"{random.randint(9, 17):02d}:00" for _ in range(3)]
-        active_days = ["Monday", "Wednesday", "Friday"]
+        # Fallback: return empty data if no timestamp available
+        peak_hours = []
+        active_days = []
     
-    # Calculate average engagement rate
-    avg_engagement_rate = df['engagement_rate'].mean() if not df['engagement_rate'].isna().all() else 0.0
+    # Calculate average engagement rate using formula: total_engagement / total_posts
+    total_engagement = df['total_engagement'].sum()
+    total_posts = len(df)
+    avg_engagement_rate = total_engagement / total_posts if total_posts > 0 else 0.0
     
     return {
         'peak_hours': peak_hours,
         'active_days': active_days,
-        'avg_engagement_rate': round(avg_engagement_rate * 100, 2)  # Convert to percentage
+        'avg_engagement_rate': round(avg_engagement_rate, 2)  # No percentage conversion, keep as raw value
     }
 
 def normalize_location(location: str) -> str:

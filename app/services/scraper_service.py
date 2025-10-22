@@ -478,6 +478,208 @@ class ScraperService:
                 results[platform] = pd.DataFrame()
         
         return results
+    
+    def scrape_content_comments(
+        self,
+        content_url: str,
+        platform: str,
+        max_comments: int = 200
+    ) -> pd.DataFrame:
+        """
+        Scrape comments from individual content for content analysis
+        
+        Args:
+            content_url: URL of the content to scrape comments from
+            platform: Platform type (instagram, twitter, youtube, tiktok)
+            max_comments: Maximum number of comments to scrape
+        
+        Returns:
+            DataFrame with scraped comments
+        """
+        if not self.client:
+            raise ValueError("Apify client not initialized. Please provide API token.")
+        
+        print(f"🔍 Scraping comments from {platform}: {content_url}")
+        
+        try:
+            if platform.lower() == "instagram":
+                return self._scrape_instagram_comments(content_url, max_comments)
+            elif platform.lower() == "twitter":
+                return self._scrape_twitter_comments(content_url, max_comments)
+            elif platform.lower() == "youtube":
+                return self._scrape_youtube_comments(content_url, max_comments)
+            elif platform.lower() == "tiktok":
+                return self._scrape_tiktok_comments(content_url, max_comments)
+            else:
+                print(f"⚠️  Unsupported platform for comment scraping: {platform}")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            print(f"❌ Error scraping comments from {platform}: {str(e)}")
+            return pd.DataFrame()
+    
+    def _scrape_instagram_comments(self, content_url: str, max_comments: int) -> pd.DataFrame:
+        """Scrape Instagram comments using Apify Instagram scraper with comments configuration"""
+        # Apify Instagram scraper actor ID
+        actor_id = "apify/instagram-scraper"
+        
+        run_input = {
+            "directUrls": [content_url],
+            "resultsLimit": max_comments,
+            "resultsType": "comments",  # ✅ Configure to scrape comments, not posts
+            "searchLimit": max_comments,
+        }
+        
+        print(f"⏳ Running Apify Instagram scraper for comments...")
+        
+        try:
+            # Run the actor
+            run = self.client.actor(actor_id).call(run_input=run_input)
+            
+            # Fetch results
+            print(f"📥 Fetching comment results from dataset...")
+            dataset_items = list(self.client.dataset(run["defaultDatasetId"]).iterate_items())
+            
+            if not dataset_items:
+                print("⚠️  No comments found")
+                return pd.DataFrame()
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(dataset_items)
+            
+            # Add metadata
+            df['scraped_at'] = datetime.now()
+            df['platform'] = 'instagram'
+            df['content_url'] = content_url
+            
+            print(f"✅ Instagram comments scraped: {len(df)} comments")
+            return df
+            
+        except Exception as e:
+            print(f"❌ Error scraping Instagram comments: {str(e)}")
+            raise
+    
+    def _scrape_twitter_comments(self, content_url: str, max_comments: int) -> pd.DataFrame:
+        """Scrape Twitter comments/replies using Apify Twitter scraper"""
+        # Apify Twitter scraper actor ID
+        actor_id = "apify/twitter-scraper"
+        
+        run_input = {
+            "tweetUrls": [content_url],
+            "maxTweets": max_comments,
+            "addUserInfo": True,
+            "addSearchTerms": False,
+        }
+        
+        print(f"⏳ Running Apify Twitter scraper for comments...")
+        
+        try:
+            # Run the actor
+            run = self.client.actor(actor_id).call(run_input=run_input)
+            
+            # Fetch results
+            print(f"📥 Fetching comment results from dataset...")
+            dataset_items = list(self.client.dataset(run["defaultDatasetId"]).iterate_items())
+            
+            if not dataset_items:
+                print("⚠️  No comments found")
+                return pd.DataFrame()
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(dataset_items)
+            
+            # Add metadata
+            df['scraped_at'] = datetime.now()
+            df['platform'] = 'twitter'
+            df['content_url'] = content_url
+            
+            print(f"✅ Twitter comments scraped: {len(df)} comments")
+            return df
+            
+        except Exception as e:
+            print(f"❌ Error scraping Twitter comments: {str(e)}")
+            raise
+    
+    def _scrape_youtube_comments(self, content_url: str, max_comments: int) -> pd.DataFrame:
+        """Scrape YouTube comments using Apify YouTube scraper"""
+        # Apify YouTube scraper actor ID
+        actor_id = "apify/youtube-scraper"
+        
+        run_input = {
+            "startUrls": [content_url],
+            "maxResults": max_comments,
+            "includeComments": True,
+            "includeReplies": True,
+        }
+        
+        print(f"⏳ Running Apify YouTube scraper for comments...")
+        
+        try:
+            # Run the actor
+            run = self.client.actor(actor_id).call(run_input=run_input)
+            
+            # Fetch results
+            print(f"📥 Fetching comment results from dataset...")
+            dataset_items = list(self.client.dataset(run["defaultDatasetId"]).iterate_items())
+            
+            if not dataset_items:
+                print("⚠️  No comments found")
+                return pd.DataFrame()
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(dataset_items)
+            
+            # Add metadata
+            df['scraped_at'] = datetime.now()
+            df['platform'] = 'youtube'
+            df['content_url'] = content_url
+            
+            print(f"✅ YouTube comments scraped: {len(df)} comments")
+            return df
+            
+        except Exception as e:
+            print(f"❌ Error scraping YouTube comments: {str(e)}")
+            raise
+    
+    def _scrape_tiktok_comments(self, content_url: str, max_comments: int) -> pd.DataFrame:
+        """Scrape TikTok comments using Apify TikTok scraper"""
+        # Apify TikTok scraper actor ID
+        actor_id = "apify/tiktok-scraper"
+        
+        run_input = {
+            "startUrls": [content_url],
+            "maxResults": max_comments,
+            "includeComments": True,
+        }
+        
+        print(f"⏳ Running Apify TikTok scraper for comments...")
+        
+        try:
+            # Run the actor
+            run = self.client.actor(actor_id).call(run_input=run_input)
+            
+            # Fetch results
+            print(f"📥 Fetching comment results from dataset...")
+            dataset_items = list(self.client.dataset(run["defaultDatasetId"]).iterate_items())
+            
+            if not dataset_items:
+                print("⚠️  No comments found")
+                return pd.DataFrame()
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(dataset_items)
+            
+            # Add metadata
+            df['scraped_at'] = datetime.now()
+            df['platform'] = 'tiktok'
+            df['content_url'] = content_url
+            
+            print(f"✅ TikTok comments scraped: {len(df)} comments")
+            return df
+            
+        except Exception as e:
+            print(f"❌ Error scraping TikTok comments: {str(e)}")
+            raise
 
 
 # Singleton instance

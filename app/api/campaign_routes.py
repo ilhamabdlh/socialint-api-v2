@@ -11,7 +11,8 @@ from app.models.database import (
     PostURL,
     CampaignStatus,
     CampaignType,
-    PlatformType
+    PlatformType,
+    CreatedFromType
 )
 
 router = APIRouter(prefix="/campaigns", tags=["Campaign Management"])
@@ -81,6 +82,7 @@ class CampaignUpdate(BaseModel):
     description: Optional[str] = None
     campaign_type: Optional[CampaignType] = None
     status: Optional[CampaignStatus] = None
+    brand_name: Optional[str] = None
     keywords: Optional[List[str]] = None
     target_audiences: Optional[List[str]] = None
     platforms: Optional[List[PlatformType]] = None
@@ -102,6 +104,7 @@ class CampaignResponse(BaseModel):
     target_audiences: List[str]
     platforms: List[str]
     post_urls_count: int
+    post_urls: List[dict] = []
     
     start_date: datetime
     end_date: datetime
@@ -150,8 +153,26 @@ async def create_campaign(campaign: CampaignCreate):
         # Get or create brand
         brand = await Brand.find_one(Brand.name == campaign.brand_name)
         if not brand:
-            brand = Brand(name=campaign.brand_name, keywords=campaign.keywords)
+            # Create new brand with comprehensive data
+            brand = Brand(
+                name=campaign.brand_name, 
+                keywords=campaign.keywords,
+                platforms=campaign.platforms,  # Save platforms to brand
+                created_from=CreatedFromType.CAMPAIGN,  # Set created_from to 'campaign'
+                description=f"Brand created from campaign: {campaign.campaign_name}"
+            )
             await brand.insert()
+        else:
+            # Update existing brand with new keywords and platforms
+            brand.keywords = list(set(brand.keywords + campaign.keywords))  # Merge keywords
+            # Convert existing platforms to values and merge with new platforms
+            existing_platforms = [p.value for p in brand.platforms] if hasattr(brand.platforms, '__iter__') else []
+            new_platforms = [p.value for p in campaign.platforms] if hasattr(campaign.platforms, '__iter__') else []
+            merged_platforms = list(set(existing_platforms + new_platforms))
+            # Convert back to PlatformType enums
+            brand.platforms = [PlatformType(p) for p in merged_platforms]
+            brand.updated_at = datetime.now(pytz.UTC)
+            await brand.save()
         
         # Create post URLs
         post_url_docs = []
@@ -262,18 +283,38 @@ async def list_campaigns(
         
         response = []
         for campaign in campaigns:
-            brand = await campaign.brand.fetch()
-            response.append(CampaignResponse(
-                id=str(campaign.id),
-                campaign_name=campaign.campaign_name,
-                description=campaign.description,
-                campaign_type=campaign.campaign_type.value,
-                status=campaign.status.value,
-                brand_name=brand.name,
+            try:
+                # Safely fetch brand
+                brand = await campaign.brand.fetch()
+                brand_name = brand.name if brand and hasattr(brand, 'name') else "Unknown Brand"
+                
+                # Convert post_urls to dict format
+                post_urls_data = []
+                for post_url_link in campaign.post_urls:
+                    try:
+                        post_url = await post_url_link.fetch()
+                        post_urls_data.append({
+                            "url": post_url.url,
+                            "platform": post_url.platform.value,
+                            "title": post_url.title,
+                            "description": post_url.description
+                        })
+                    except Exception as e:
+                        print(f"Warning: Could not fetch post_url {post_url_link}: {str(e)}")
+                        continue
+                
+                response.append(CampaignResponse(
+                    id=str(campaign.id),
+                    campaign_name=campaign.campaign_name,
+                    description=campaign.description,
+                    campaign_type=campaign.campaign_type.value,
+                    status=campaign.status.value,
+                    brand_name=brand_name,
                 keywords=campaign.keywords,
                 target_audiences=campaign.target_audiences,
                 platforms=[p.value for p in campaign.platforms],
                 post_urls_count=len(campaign.post_urls),
+                post_urls=post_urls_data,
                 start_date=campaign.start_date,
                 end_date=campaign.end_date,
                 total_mentions=campaign.total_mentions,
@@ -287,9 +328,86 @@ async def list_campaigns(
                 created_at=campaign.created_at,
                 updated_at=campaign.updated_at,
                 last_analysis_at=campaign.last_analysis_at
-            ))
+                ))
+            except Exception as e:
+                print(f"Warning: Could not process campaign {campaign.id}: {str(e)}")
+                continue
         
         return response
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/active-campaigns")
+async def get_active_campaigns():
+    """
+    Get all campaigns that should be analyzed today
+    
+    Returns campaigns where:
+    - status = ACTIVE
+    - start_date <= today <= end_date
+    - auto_analysis_enabled = True
+    """
+    try:
+        now = datetime.now(pytz.UTC)
+        
+        campaigns = await Campaign.find(
+            Campaign.status == CampaignStatus.ACTIVE,
+            Campaign.start_date <= now,
+            Campaign.end_date >= now,
+            Campaign.auto_analysis_enabled == True
+        ).to_list()
+        
+        result = []
+        for campaign in campaigns:
+            brand = await campaign.brand.fetch()
+            result.append({
+                "campaign_name": campaign.campaign_name,
+                "brand_name": brand.name,
+                "start_date": campaign.start_date,
+                "end_date": campaign.end_date,
+                "last_analysis_at": campaign.last_analysis_at,
+                "next_analysis_at": campaign.next_analysis_at
+            })
+        
+        return {
+            "count": len(result),
+            "campaigns": result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/brands/list")
+async def list_campaign_brands(
+    skip: int = 0,
+    limit: int = 100
+):
+    """
+    Get all brands that were created from campaigns (created_from='campaign')
+    
+    This is useful for the Campaign Management page to show only campaign-related brands.
+    """
+    try:
+        brands = await Brand.find(
+            Brand.created_from == CreatedFromType.CAMPAIGN
+        ).skip(skip).limit(limit).to_list()
+        
+        return [
+            {
+                "id": str(b.id),
+                "name": b.name,
+                "description": b.description,
+                "keywords": b.keywords,
+                "platforms": [p.value for p in b.platforms],
+                "industry": b.industry,
+                "competitors": b.competitors,
+                "created_from": b.created_from.value,
+                "created_at": b.created_at,
+                "updated_at": b.updated_at
+            }
+            for b in brands
+        ]
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -306,6 +424,17 @@ async def get_campaign(campaign_name: str):
         
         brand = await campaign.brand.fetch()
         
+        # Convert post_urls to dict format
+        post_urls_data = []
+        for post_url_link in campaign.post_urls:
+            post_url = await post_url_link.fetch()
+            post_urls_data.append({
+                "url": post_url.url,
+                "platform": post_url.platform.value,
+                "title": post_url.title,
+                "description": post_url.description
+            })
+        
         return CampaignResponse(
             id=str(campaign.id),
             campaign_name=campaign.campaign_name,
@@ -317,6 +446,7 @@ async def get_campaign(campaign_name: str):
             target_audiences=campaign.target_audiences,
             platforms=[p.value for p in campaign.platforms],
             post_urls_count=len(campaign.post_urls),
+            post_urls=post_urls_data,
             start_date=campaign.start_date,
             end_date=campaign.end_date,
             total_mentions=campaign.total_mentions,
@@ -347,7 +477,23 @@ async def update_campaign(campaign_name: str, update: CampaignUpdate):
         if not campaign:
             raise HTTPException(status_code=404, detail="Campaign not found")
         
-        # Update fields
+        # Handle brand_name update - this requires special handling
+        if update.brand_name is not None:
+            # Get or create new brand
+            new_brand = await Brand.find_one(Brand.name == update.brand_name)
+            if not new_brand:
+                # Create new brand with campaign data
+                new_brand = Brand(
+                    name=update.brand_name,
+                    keywords=update.keywords or campaign.keywords,
+                    platforms=update.platforms or campaign.platforms,
+                    created_from=CreatedFromType.CAMPAIGN,
+                    description=f"Brand created from campaign update: {campaign.campaign_name}"
+                )
+                await new_brand.insert()
+            campaign.brand = new_brand
+        
+        # Update other fields
         if update.description is not None:
             campaign.description = update.description
         if update.campaign_type is not None:
@@ -374,7 +520,44 @@ async def update_campaign(campaign_name: str, update: CampaignUpdate):
         campaign.updated_at = datetime.now(pytz.UTC)
         await campaign.save()
         
-        brand = await campaign.brand.fetch()
+        # Update brand data if keywords or platforms changed
+        # Handle brand fetching properly - check if it's a Link or direct object
+        if hasattr(campaign.brand, 'fetch'):
+            brand = await campaign.brand.fetch()
+        else:
+            brand = campaign.brand
+            
+        if update.keywords is not None or update.platforms is not None:
+            # Merge new keywords
+            if update.keywords is not None:
+                brand.keywords = list(set(brand.keywords + update.keywords))
+            
+            # Merge new platforms
+            if update.platforms is not None:
+                existing_platforms = [p.value for p in brand.platforms] if hasattr(brand.platforms, '__iter__') else []
+                new_platforms = [p.value for p in update.platforms] if hasattr(update.platforms, '__iter__') else []
+                merged_platforms = list(set(existing_platforms + new_platforms))
+                brand.platforms = [PlatformType(p) for p in merged_platforms]
+            
+            brand.updated_at = datetime.now(pytz.UTC)
+            await brand.save()
+        
+        # Get brand for response - handle both Link and direct object
+        if hasattr(campaign.brand, 'fetch'):
+            brand = await campaign.brand.fetch()
+        else:
+            brand = campaign.brand
+        
+        # Convert post_urls to dict format
+        post_urls_data = []
+        for post_url_link in campaign.post_urls:
+            post_url = await post_url_link.fetch()
+            post_urls_data.append({
+                "url": post_url.url,
+                "platform": post_url.platform.value,
+                "title": post_url.title,
+                "description": post_url.description
+            })
         
         return CampaignResponse(
             id=str(campaign.id),
@@ -387,6 +570,7 @@ async def update_campaign(campaign_name: str, update: CampaignUpdate):
             target_audiences=campaign.target_audiences,
             platforms=[p.value for p in campaign.platforms],
             post_urls_count=len(campaign.post_urls),
+            post_urls=post_urls_data,
             start_date=campaign.start_date,
             end_date=campaign.end_date,
             total_mentions=campaign.total_mentions,
@@ -535,46 +719,6 @@ async def trigger_campaign_analysis(campaign_name: str, background_tasks: Backgr
         
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/{campaign_name}/active-campaigns")
-async def get_active_campaigns():
-    """
-    Get all campaigns that should be analyzed today
-    
-    Returns campaigns where:
-    - status = ACTIVE
-    - start_date <= today <= end_date
-    - auto_analysis_enabled = True
-    """
-    try:
-        now = datetime.now(pytz.UTC)
-        
-        campaigns = await Campaign.find(
-            Campaign.status == CampaignStatus.ACTIVE,
-            Campaign.start_date <= now,
-            Campaign.end_date >= now,
-            Campaign.auto_analysis_enabled == True
-        ).to_list()
-        
-        result = []
-        for campaign in campaigns:
-            brand = await campaign.brand.fetch()
-            result.append({
-                "campaign_name": campaign.campaign_name,
-                "brand_name": brand.name,
-                "start_date": campaign.start_date,
-                "end_date": campaign.end_date,
-                "last_analysis_at": campaign.last_analysis_at,
-                "next_analysis_at": campaign.next_analysis_at
-            })
-        
-        return {
-            "count": len(result),
-            "campaigns": result
-        }
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

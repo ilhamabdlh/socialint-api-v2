@@ -42,6 +42,20 @@ class DatabaseService:
         """Get brand by name"""
         return await Brand.find_one(Brand.name == name)
     
+    async def get_brand_by_id(self, brand_id: str) -> Optional[Brand]:
+        """Get brand by ObjectID"""
+        try:
+            from bson import ObjectId
+            print(f"Looking for brand with ID: {brand_id}")
+            brand = await Brand.get(ObjectId(brand_id))
+            print(f"Found brand: {brand}")
+            return brand
+        except Exception as e:
+            print(f"Error in get_brand_by_id: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            raise
+    
     async def list_brands(self) -> List[Brand]:
         """List all brands"""
         return await Brand.find_all().to_list()
@@ -384,6 +398,287 @@ class DatabaseService:
             query = query.find(TopicInterest.platform == platform)
         
         return await query.sort("-trend_score").limit(limit).to_list()
+
+    # =============================================================================
+    # Brand Analysis Collections
+    # =============================================================================
+    
+    async def create_brand_analysis(
+        self,
+        brand_id: str,
+        analysis_name: str,
+        analysis_type: str = "comprehensive",
+        keywords: List[str] = None,
+        platforms: List[str] = None,
+        date_range: Dict[str, Any] = None
+    ) -> str:
+        """Create a new brand analysis record"""
+        try:
+            from app.models.database import BrandAnalysis, PlatformType
+            
+            print(f"Creating brand analysis for brand_id: {brand_id}")
+            print(f"Analysis name: {analysis_name}")
+            print(f"Keywords: {keywords}")
+            print(f"Platforms: {platforms}")
+            
+            analysis = BrandAnalysis(
+                brand_id=brand_id,
+                analysis_name=analysis_name,
+                analysis_type=analysis_type,
+                keywords=keywords or [],
+                platforms=[PlatformType(p) for p in platforms] if platforms else [],
+                date_range=date_range or {},
+                status="pending"
+            )
+            
+            await analysis.save()
+            print(f"Brand analysis created with ID: {analysis.id}")
+            return str(analysis.id)
+        except Exception as e:
+            print(f"Error in create_brand_analysis: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            raise
+    
+    async def update_brand_analysis_status(
+        self,
+        analysis_id: str,
+        status: str,
+        total_posts: int = 0,
+        total_engagement: int = 0,
+        sentiment_distribution: Dict[str, int] = None,
+        top_topics: List[str] = None
+    ):
+        """Update brand analysis status and results"""
+        from app.models.database import BrandAnalysis
+        
+        from bson import ObjectId
+        analysis = await BrandAnalysis.get(ObjectId(analysis_id))
+        if analysis:
+            analysis.status = status
+            analysis.total_posts = total_posts
+            analysis.total_engagement = total_engagement
+            if sentiment_distribution:
+                analysis.sentiment_distribution = sentiment_distribution
+            if top_topics:
+                analysis.top_topics = top_topics
+            analysis.updated_at = datetime.now()
+            if status == "completed":
+                analysis.completed_at = datetime.now()
+            await analysis.save()
+    
+    async def save_brand_metrics(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        metrics_data: Dict[str, Any]
+    ):
+        """Save brand metrics data"""
+        from app.models.database import BrandMetrics
+        
+        metrics = BrandMetrics(
+            brand_analysis_id=brand_analysis_id,
+            brand_id=brand_id,
+            **metrics_data
+        )
+        await metrics.save()
+    
+    async def save_brand_sentiment_timeline(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        timeline_data: List[Dict[str, Any]]
+    ):
+        """Save brand sentiment timeline data"""
+        from app.models.database import BrandSentimentTimeline
+        
+        for data in timeline_data:
+            timeline = BrandSentimentTimeline(
+                brand_analysis_id=brand_analysis_id,
+                brand_id=brand_id,
+                **data
+            )
+            await timeline.save()
+    
+    async def save_brand_trending_topics(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        topics_data: List[Dict[str, Any]]
+    ):
+        """Save brand trending topics data"""
+        from app.models.database import BrandTrendingTopics
+        
+        for data in topics_data:
+            topic = BrandTrendingTopics(
+                brand_analysis_id=brand_analysis_id,
+                brand_id=brand_id,
+                **data
+            )
+            await topic.save()
+    
+    async def save_brand_demographics(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        demographics_data: Dict[str, Any]
+    ):
+        """Save brand demographics data"""
+        from app.models.database import BrandDemographics
+        
+        demographics = BrandDemographics(
+            brand_analysis_id=brand_analysis_id,
+            brand_id=brand_id,
+            **demographics_data
+        )
+        await demographics.save()
+    
+    async def save_brand_engagement_patterns(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        patterns_data: Dict[str, Any]
+    ):
+        """Save brand engagement patterns data"""
+        from app.models.database import BrandEngagementPatterns
+        
+        patterns = BrandEngagementPatterns(
+            brand_analysis_id=brand_analysis_id,
+            brand_id=brand_id,
+            **patterns_data
+        )
+        await patterns.save()
+    
+    async def save_brand_performance(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        performance_data: Dict[str, Any]
+    ):
+        """Save brand performance data"""
+        from app.models.database import BrandPerformance
+        
+        performance = BrandPerformance(
+            brand_analysis_id=brand_analysis_id,
+            brand_id=brand_id,
+            **performance_data
+        )
+        await performance.save()
+    
+    async def save_brand_emotions(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        emotions_data: Dict[str, Any]
+    ):
+        """Save brand emotions data"""
+        from app.models.database import BrandEmotions
+        
+        emotions = BrandEmotions(
+            brand_analysis_id=brand_analysis_id,
+            brand_id=brand_id,
+            **emotions_data
+        )
+        await emotions.save()
+    
+    async def save_brand_competitive(
+        self,
+        brand_analysis_id: str,
+        brand_id: str,
+        competitive_data: Dict[str, Any]
+    ):
+        """Save brand competitive analysis data"""
+        from app.models.database import BrandCompetitive
+        
+        competitive = BrandCompetitive(
+            brand_analysis_id=brand_analysis_id,
+            brand_id=brand_id,
+            **competitive_data
+        )
+        await competitive.save()
+    
+    async def get_brand_analysis(self, analysis_id: str):
+        """Get brand analysis by ID"""
+        from app.models.database import BrandAnalysis
+        return await BrandAnalysis.find_one(BrandAnalysis.id == analysis_id)
+    
+    async def get_brand_metrics(self, brand_analysis_id: str):
+        """Get brand metrics by analysis ID"""
+        from app.models.database import BrandMetrics
+        return await BrandMetrics.find_one(BrandMetrics.brand_analysis_id == brand_analysis_id)
+    
+    async def get_brand_sentiment_timeline(self, brand_analysis_id: str, start_date: str = None, end_date: str = None):
+        """Get brand sentiment timeline by analysis ID"""
+        from app.models.database import BrandSentimentTimeline
+        
+        query = BrandSentimentTimeline.find(BrandSentimentTimeline.brand_analysis_id == brand_analysis_id)
+        
+        if start_date:
+            query = query.find(BrandSentimentTimeline.date >= datetime.fromisoformat(start_date))
+        if end_date:
+            query = query.find(BrandSentimentTimeline.date <= datetime.fromisoformat(end_date))
+        
+        return await query.sort("date").to_list()
+    
+    async def get_brand_trending_topics(self, brand_analysis_id: str, platform: str = None):
+        """Get brand trending topics by analysis ID"""
+        from app.models.database import BrandTrendingTopics
+        
+        query = BrandTrendingTopics.find(BrandTrendingTopics.brand_analysis_id == brand_analysis_id)
+        
+        if platform and platform != "all":
+            query = query.find(BrandTrendingTopics.platform == platform)
+        
+        return await query.sort("-topic_count").to_list()
+    
+    async def get_brand_demographics(self, brand_analysis_id: str, platform: str = None):
+        """Get brand demographics by analysis ID"""
+        from app.models.database import BrandDemographics
+        
+        query = BrandDemographics.find(BrandDemographics.brand_analysis_id == brand_analysis_id)
+        
+        if platform and platform != "all":
+            query = query.find(BrandDemographics.platform == platform)
+        
+        return await query.to_list()
+    
+    async def get_brand_engagement_patterns(self, brand_analysis_id: str, platform: str = None):
+        """Get brand engagement patterns by analysis ID"""
+        from app.models.database import BrandEngagementPatterns
+        
+        query = BrandEngagementPatterns.find(BrandEngagementPatterns.brand_analysis_id == brand_analysis_id)
+        
+        if platform and platform != "all":
+            query = query.find(BrandEngagementPatterns.platform == platform)
+        
+        return await query.to_list()
+    
+    async def get_brand_performance(self, brand_analysis_id: str, platform: str = None):
+        """Get brand performance by analysis ID"""
+        from app.models.database import BrandPerformance
+        
+        query = BrandPerformance.find(BrandPerformance.brand_analysis_id == brand_analysis_id)
+        
+        if platform and platform != "all":
+            query = query.find(BrandPerformance.platform == platform)
+        
+        return await query.to_list()
+    
+    async def get_brand_emotions(self, brand_analysis_id: str, platform: str = None):
+        """Get brand emotions by analysis ID"""
+        from app.models.database import BrandEmotions
+        
+        query = BrandEmotions.find(BrandEmotions.brand_analysis_id == brand_analysis_id)
+        
+        if platform and platform != "all":
+            query = query.find(BrandEmotions.platform == platform)
+        
+        return await query.to_list()
+    
+    async def get_brand_competitive(self, brand_analysis_id: str):
+        """Get brand competitive analysis by analysis ID"""
+        from app.models.database import BrandCompetitive
+        return await BrandCompetitive.find_one(BrandCompetitive.brand_analysis_id == brand_analysis_id)
 
 # Singleton instance
 db_service = DatabaseService()

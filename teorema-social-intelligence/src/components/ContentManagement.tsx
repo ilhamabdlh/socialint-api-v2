@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -7,27 +7,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { Content, contents as mockContents } from "@/lib/mock-data";
-import { Plus, Search, Eye, Edit, Trash2, FileText, Calendar, User, ExternalLink } from "lucide-react";
+import { Content } from "../lib/mock-data";
+import { contentAPI, resultsAPI } from "../lib/api-client";
+import { Plus, Search, Eye, Edit, Trash2, FileText, Calendar, User, ExternalLink, Play, Loader2, Download } from "lucide-react";
+import { toast } from "sonner";
+import { AnalysisNotification } from "./ui/analysis-notification";
 
 interface ContentManagementProps {
   onSelectContent: (content: Content) => void;
 }
 
 export function ContentManagement({ onSelectContent }: ContentManagementProps) {
-  const [contents, setContents] = useState<Content[]>(mockContents);
+  const [contents, setContents] = useState<Content[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPlatform, setFilterPlatform] = useState("all");
   const [filterContentType, setFilterContentType] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
+  const [analyzingContent, setAnalyzingContent] = useState<string | null>(null);
+  
+  // Analysis notification state
+  const [showAnalysisNotification, setShowAnalysisNotification] = useState(false);
+  const [analysisNotificationData, setAnalysisNotificationData] = useState<{
+    contentName: string;
+    type: 'started' | 'completed' | 'failed';
+    analysisId?: string;
+    platforms?: string[];
+    keywords?: string[];
+    estimatedCompletion?: string;
+  } | null>(null);
 
   // Form state for creating/editing content
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    postUrl: "",
     platform: "",
     content_type: "post" as Content['content_type'],
     author: "",
@@ -36,11 +51,14 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
     tags: ""
   });
 
+  // Platform selection state
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [platformUrls, setPlatformUrls] = useState<{[key: string]: string}>({});
+
   const resetForm = () => {
     setFormData({
       title: "",
       description: "",
-      postUrl: "",
       platform: "",
       content_type: "post",
       author: "",
@@ -48,25 +66,142 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
       status: "published",
       tags: ""
     });
+    setSelectedPlatforms([]);
+    setPlatformUrls({});
   };
 
-  const handleCreate = () => {
-    const newContent: Content = {
-      id: `content_${Date.now()}`,
-      title: formData.title,
-      description: formData.description,
-      postUrl: formData.postUrl,
-      platform: formData.platform,
-      content_type: formData.content_type,
-      author: formData.author,
-      publish_date: formData.publish_date,
-      status: formData.status,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t)
-    };
+  // Platform selection handlers
+  const handlePlatformToggle = (platform: string) => {
+    setSelectedPlatforms(prev => {
+      if (prev.includes(platform)) {
+        // Remove platform
+        const newPlatforms = prev.filter(p => p !== platform);
+        setPlatformUrls(prevUrls => {
+          const newUrls = {...prevUrls};
+          delete newUrls[platform];
+          return newUrls;
+        });
+        return newPlatforms;
+      } else {
+        // Add platform
+        return [...prev, platform];
+      }
+    });
+  };
 
-    setContents([...contents, newContent]);
-    setIsCreateDialogOpen(false);
-    resetForm();
+  const handlePlatformUrlChange = (platform: string, url: string) => {
+    setPlatformUrls(prev => ({
+      ...prev,
+      [platform]: url
+    }));
+  };
+
+  // Load contents from API
+  useEffect(() => {
+    loadContents();
+  }, []);
+
+  const loadContents = async () => {
+    try {
+      setLoading(true);
+      const response = await contentAPI.list();
+      // Map ContentResponse to Content interface
+      const mappedContents = (response || []).map((item: any) => ({
+        ...item,
+        postUrl: item.post_url || item.url || "",
+        keywords: item.keywords || [],
+        target_audience: item.target_audience || [],
+        content_category: item.content_category || "general",
+        language: item.language || "en",
+        priority: item.priority || "medium",
+        analysis_status: item.analysis_status || "pending"
+      }));
+      setContents(mappedContents);
+    } catch (error) {
+      console.error("Error loading contents:", error);
+      toast.error("Failed to load contents");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTriggerAnalysis = async (content: Content) => {
+    try {
+      setAnalyzingContent(content.id);
+      const response = await resultsAPI.triggerContentAnalysis(
+        content.id,
+        "comprehensive",
+        {}
+      );
+      
+      // Show analysis notification popup
+      setAnalysisNotificationData({
+        contentName: content.title,
+        type: 'started',
+        analysisId: response.content_id || content.id,
+        platforms: [content.platform],
+        keywords: content.tags || [],
+        estimatedCompletion: response.estimated_completion || "3-7 minutes"
+      });
+      setShowAnalysisNotification(true);
+      
+      toast.success("Content analysis with scraping started successfully", {
+        description: "This will scrape post data and comments, then perform comprehensive analysis"
+      });
+      console.log("Analysis started:", response);
+    } catch (error) {
+      console.error("Error triggering content analysis:", error);
+      
+      // Show failed notification
+      setAnalysisNotificationData({
+        contentName: content.title,
+        type: 'failed',
+        analysisId: content.id
+      });
+      setShowAnalysisNotification(true);
+      
+      toast.error("Failed to start content analysis");
+    } finally {
+      setAnalyzingContent(null);
+    }
+  };
+
+
+  const handleCreate = async () => {
+    try {
+      // Get the first selected platform URL as the main post_url
+      const mainPlatform = selectedPlatforms[0];
+      const mainUrl = mainPlatform ? platformUrls[mainPlatform] || "" : "";
+      
+      const contentData = {
+        title: formData.title,
+        description: formData.description,
+        content_text: formData.description, // Use description as content_text
+        post_url: mainUrl,
+        platform: mainPlatform || formData.platform,
+        content_type: formData.content_type,
+        author: formData.author,
+        publish_date: formData.publish_date,
+        status: formData.status,
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+        brand_name: undefined,
+        campaign_id: undefined,
+        keywords: [],
+        target_audience: [],
+        content_category: "general",
+        language: "en",
+        priority: "medium"
+      };
+
+      const response = await contentAPI.create(contentData);
+      await loadContents(); // Reload contents from API
+      setIsCreateDialogOpen(false);
+      resetForm();
+      toast.success("Content created successfully");
+    } catch (error) {
+      console.error("Error creating content:", error);
+      toast.error("Failed to create content");
+    }
   };
 
   const handleEdit = (content: Content) => {
@@ -74,7 +209,6 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
     setFormData({
       title: content.title,
       description: content.description,
-      postUrl: content.postUrl,
       platform: content.platform,
       content_type: content.content_type,
       author: content.author,
@@ -82,31 +216,60 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
       status: content.status,
       tags: content.tags.join(', ')
     });
+    
+    // Set platform selection and URL
+    setSelectedPlatforms([content.platform]);
+    setPlatformUrls({ [content.platform]: content.postUrl });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingContent) return;
 
-    const updatedContent: Content = {
-      ...editingContent,
-      title: formData.title,
-      description: formData.description,
-      postUrl: formData.postUrl,
-      platform: formData.platform,
-      content_type: formData.content_type,
-      author: formData.author,
-      publish_date: formData.publish_date,
-      status: formData.status,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t)
-    };
+    try {
+      // Get the first selected platform URL as the main post_url
+      const mainPlatform = selectedPlatforms[0];
+      const mainUrl = mainPlatform ? platformUrls[mainPlatform] || "" : "";
+      
+      const updateData = {
+        title: formData.title,
+        description: formData.description,
+        content_text: formData.description, // Use description as content_text
+        post_url: mainUrl,
+        platform: mainPlatform || formData.platform,
+        content_type: formData.content_type,
+        author: formData.author,
+        publish_date: formData.publish_date,
+        status: formData.status,
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+        brand_name: undefined,
+        campaign_id: undefined,
+        keywords: [],
+        target_audience: [],
+        content_category: "general",
+        language: "en",
+        priority: "medium"
+      };
 
-    setContents(contents.map(c => c.id === editingContent.id ? updatedContent : c));
-    setEditingContent(null);
-    resetForm();
+      await contentAPI.update(editingContent.id, updateData);
+      await loadContents(); // Reload contents from API
+      setEditingContent(null);
+      resetForm();
+      toast.success("Content updated successfully");
+    } catch (error) {
+      console.error("Error updating content:", error);
+      toast.error("Failed to update content");
+    }
   };
 
-  const handleDelete = (contentId: string) => {
-    setContents(contents.filter(c => c.id !== contentId));
+  const handleDelete = async (contentId: string) => {
+    try {
+      await contentAPI.delete(contentId);
+      await loadContents(); // Reload contents from API
+      toast.success("Content deleted successfully");
+    } catch (error) {
+      console.error("Error deleting content:", error);
+      toast.error("Failed to delete content");
+    }
   };
 
   const filteredContents = contents.filter(content => {
@@ -208,41 +371,55 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="postUrl">Post URL</Label>
-                <Input
-                  id="postUrl"
-                  value={formData.postUrl}
-                  onChange={(e) => setFormData({ ...formData, postUrl: e.target.value })}
-                  placeholder="https://example.com/post/123"
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Platform Selection</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['Instagram', 'YouTube', 'TikTok', 'Twitter/X'].map((platform) => (
+                      <div key={platform} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`platform-${platform}`}
+                          checked={selectedPlatforms.includes(platform)}
+                          onChange={() => handlePlatformToggle(platform)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <Label htmlFor={`platform-${platform}`} className="text-sm font-medium">
+                          {platform}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dynamic URL inputs for selected platforms */}
+                {selectedPlatforms.map((platform) => (
+                  <div key={platform} className="space-y-2">
+                    <Label htmlFor={`url-${platform}`}>{platform} URL</Label>
+                    <Input
+                      id={`url-${platform}`}
+                      value={platformUrls[platform] || ''}
+                      onChange={(e) => handlePlatformUrlChange(platform, e.target.value)}
+                      placeholder={`Enter ${platform} post/content URL`}
+                    />
+                  </div>
+                ))}
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="platform">Platform</Label>
-                  <Input
-                    id="platform"
-                    value={formData.platform}
-                    onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-                    placeholder="e.g., Twitter/X, YouTube, Instagram"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="content_type">Content Type</Label>
-                  <Select value={formData.content_type} onValueChange={(value: Content['content_type']) => setFormData({ ...formData, content_type: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="post">Post</SelectItem>
-                      <SelectItem value="article">Article</SelectItem>
-                      <SelectItem value="image">Image</SelectItem>
-                      <SelectItem value="story">Story</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="content_type">Content Type</Label>
+                <Select value={formData.content_type} onValueChange={(value: Content['content_type']) => setFormData({ ...formData, content_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="video">Video</SelectItem>
+                    <SelectItem value="post">Post</SelectItem>
+                    <SelectItem value="article">Article</SelectItem>
+                    <SelectItem value="image">Image</SelectItem>
+                    <SelectItem value="story">Story</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -289,6 +466,7 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
                   </SelectContent>
                 </Select>
               </div>
+              
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => {
@@ -443,6 +621,20 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => handleTriggerAnalysis(content)}
+                    disabled={analyzingContent === content.id}
+                    className="h-8 w-8 p-0"
+                    title="Trigger Analysis with Scraping"
+                  >
+                    {analyzingContent === content.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => handleEdit(content)}
                     className="h-8 w-8 p-0"
                   >
@@ -481,6 +673,23 @@ export function ContentManagement({ onSelectContent }: ContentManagementProps) {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Analysis Notification */}
+      {showAnalysisNotification && analysisNotificationData && (
+        <AnalysisNotification
+          isOpen={showAnalysisNotification}
+          onClose={() => {
+            setShowAnalysisNotification(false);
+            setAnalysisNotificationData(null);
+          }}
+          campaignName={analysisNotificationData.contentName}
+          type={analysisNotificationData.type}
+          analysisId={analysisNotificationData.analysisId}
+          platforms={analysisNotificationData.platforms}
+          keywords={analysisNotificationData.keywords}
+          estimatedCompletion={analysisNotificationData.estimatedCompletion}
+        />
       )}
     </div>
   );

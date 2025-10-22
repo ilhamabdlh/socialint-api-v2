@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -7,20 +7,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { Brand, brands as mockBrands } from "@/lib/mock-data";
-import { Plus, Search, Eye, Edit, Trash2, Building2, Tag, Users } from "lucide-react";
+import { Brand } from "../lib/mock-data";
+import { brandAPI, resultsAPI } from "../lib/api-client";
+import { Plus, Search, Eye, Edit, Trash2, Building2, Tag, Users, Play, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface BrandManagementProps {
   onSelectBrand: (brand: Brand) => void;
 }
 
 export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
-  const [brands, setBrands] = useState<Brand[]>(mockBrands);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
+  const [analyzingBrand, setAnalyzingBrand] = useState<string | null>(null);
+  const [analysisNotification, setAnalysisNotification] = useState<{
+    show: boolean;
+    type: 'started' | 'completed';
+    brandName: string;
+    analysisId: string;
+    estimatedCompletion?: string;
+    platforms?: string[];
+    keywords?: string[];
+  }>({
+    show: false,
+    type: 'started',
+    brandName: '',
+    analysisId: '',
+    estimatedCompletion: '',
+    platforms: [],
+    keywords: []
+  });
 
   // Form state for creating/editing brands
   const [formData, setFormData] = useState({
@@ -30,8 +51,20 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
     keywords: "",
     category: "",
     status: "active" as Brand['status'],
-    competitors: ""
+    competitors: "",
+    startDate: "",
+    endDate: ""
   });
+
+  // Platform selection state
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [platformUrls, setPlatformUrls] = useState<{[key: string]: string}>({
+    instagram: "",
+    tiktok: "",
+    twitter: "",
+    youtube: ""
+  });
+
 
   const resetForm = () => {
     setFormData({
@@ -41,70 +74,225 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
       keywords: "",
       category: "",
       status: "active",
-      competitors: ""
+      competitors: "",
+      startDate: "",
+      endDate: ""
+    });
+    setSelectedPlatforms([]);
+    setPlatformUrls({
+      instagram: "",
+      tiktok: "",
+      twitter: "",
+      youtube: ""
     });
   };
 
-  const handleCreate = () => {
-    const newBrand: Brand = {
-      id: `brand_${Date.now()}`,
-      name: formData.name,
-      description: formData.description,
-      postUrls: formData.postUrls.split('\n').filter(url => url.trim()),
-      keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
-      category: formData.category,
-      status: formData.status,
-      created_date: new Date().toISOString().split('T')[0],
-      competitors: formData.competitors.split(',').map(c => c.trim()).filter(c => c)
-    };
+  // Platform selection handlers
+  const handlePlatformToggle = (platform: string) => {
+    setSelectedPlatforms(prev => 
+      prev.includes(platform) 
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    );
+  };
 
-    setBrands([...brands, newBrand]);
-    setIsCreateDialogOpen(false);
-    resetForm();
+  const handlePlatformUrlChange = (platform: string, url: string) => {
+    setPlatformUrls(prev => ({
+      ...prev,
+      [platform]: url
+    }));
+  };
+
+  // Load brands from API
+  useEffect(() => {
+    loadBrands();
+  }, []);
+
+  const loadBrands = async () => {
+    try {
+      setLoading(true);
+      const response = await brandAPI.list();
+      // Convert BrandResponse to Brand format
+      const convertedBrands: Brand[] = response.map((brand: any) => ({
+        id: brand.id,
+        name: brand.name,
+        description: brand.description || '',
+        postUrls: brand.postUrls || [],
+        keywords: brand.keywords || [],
+        platforms: brand.platforms || [],
+        category: brand.category || brand.industry || '',
+        status: 'active' as Brand['status'], // Default to active
+        created_date: brand.created_at,
+        competitors: brand.competitors || [],
+        startDate: brand.startDate,
+        endDate: brand.endDate,
+        created_from: brand.created_from
+      }));
+      setBrands(convertedBrands);
+    } catch (error) {
+      console.error("Error loading brands:", error);
+      toast.error("Failed to load brands");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    try {
+      // Collect URLs from selected platforms
+      const collectedUrls = selectedPlatforms
+        .map(platform => platformUrls[platform])
+        .filter(url => url.trim() !== '');
+
+      const brandData = {
+        name: formData.name,
+        description: formData.description,
+        keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
+        platforms: selectedPlatforms, // Include selected platforms
+        postUrls: collectedUrls, // Add collected URLs
+        category: formData.category,
+        industry: formData.category, // Using category as industry
+        competitors: formData.competitors.split(',').map(c => c.trim()).filter(c => c),
+        startDate: formData.startDate || undefined,
+        endDate: formData.endDate || undefined
+      };
+
+      const response = await brandAPI.create(brandData);
+      await loadBrands(); // Reload brands from API
+      setIsCreateDialogOpen(false);
+      resetForm();
+      toast.success("Brand created successfully");
+    } catch (error) {
+      console.error("Error creating brand:", error);
+      toast.error("Failed to create brand");
+    }
   };
 
   const handleEdit = (brand: Brand) => {
     setEditingBrand(brand);
     setFormData({
-      name: brand.name,
+      name: brand.name || '',
       description: brand.description,
-      postUrls: brand.postUrls.join('\n'),
-      keywords: brand.keywords.join(', '),
+      postUrls: brand.postUrls ? brand.postUrls.join('\n') : '',
+      keywords: brand.keywords ? brand.keywords.join(', ') : '',
       category: brand.category,
-      status: brand.status,
-      competitors: brand.competitors.join(', ')
+      status: brand.status || 'active',
+      competitors: brand.competitors ? brand.competitors.join(', ') : '',
+      startDate: brand.startDate || '',
+      endDate: brand.endDate || ''
     });
+    
+    // Set selected platforms from brand data
+    if (brand.platforms && Array.isArray(brand.platforms)) {
+      setSelectedPlatforms(brand.platforms);
+      
+      // Initialize platform URLs from existing brand data
+      const initialPlatformUrls: Record<string, string> = {};
+      if (brand.postUrls && Array.isArray(brand.postUrls)) {
+        // For now, we'll need to map URLs to platforms based on URL patterns
+        // This is a simplified approach - in a real app you might store URL-platform mapping
+        brand.postUrls.forEach((url, index) => {
+          if (index < brand.platforms.length) {
+            initialPlatformUrls[brand.platforms[index]] = url;
+          }
+        });
+      }
+      setPlatformUrls(initialPlatformUrls);
+    } else {
+      setSelectedPlatforms([]);
+      setPlatformUrls({});
+    }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingBrand) return;
 
-    const updatedBrand: Brand = {
-      ...editingBrand,
-      name: formData.name,
-      description: formData.description,
-      postUrls: formData.postUrls.split('\n').filter(url => url.trim()),
-      keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
-      category: formData.category,
-      status: formData.status,
-      competitors: formData.competitors.split(',').map(c => c.trim()).filter(c => c)
-    };
+    try {
+      // Collect URLs from selected platforms
+      const collectedUrls = selectedPlatforms
+        .map(platform => platformUrls[platform])
+        .filter(url => url.trim() !== '');
 
-    setBrands(brands.map(b => b.id === editingBrand.id ? updatedBrand : b));
-    setEditingBrand(null);
-    resetForm();
+      const updateData = {
+        description: formData.description,
+        keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
+        platforms: selectedPlatforms, // Include selected platforms
+        postUrls: collectedUrls, // Add collected URLs
+        category: formData.category,
+        industry: formData.category,
+        competitors: formData.competitors.split(',').map(c => c.trim()).filter(c => c),
+        startDate: formData.startDate || undefined,
+        endDate: formData.endDate || undefined
+      };
+
+      await brandAPI.update(editingBrand.id, updateData);
+      await loadBrands(); // Reload brands from API
+      setEditingBrand(null);
+      resetForm();
+      toast.success("Brand updated successfully");
+    } catch (error) {
+      console.error("Error updating brand:", error);
+      toast.error("Failed to update brand");
+    }
   };
 
-  const handleDelete = (brandId: string) => {
-    setBrands(brands.filter(b => b.id !== brandId));
+  const handleDelete = async (brandId: string) => {
+    try {
+      await brandAPI.delete(brandId);
+      await loadBrands(); // Reload brands from API
+      toast.success("Brand deleted successfully");
+    } catch (error) {
+      console.error("Error deleting brand:", error);
+      toast.error("Failed to delete brand");
+    }
+  };
+
+  const handleTriggerAnalysis = async (brand: Brand) => {
+    try {
+      setAnalyzingBrand(brand.id || '');
+      
+      // Use brand's configured platforms or default to all platforms
+      const platforms = brand.platforms && brand.platforms.length > 0 
+        ? brand.platforms 
+        : ["tiktok", "instagram", "twitter", "youtube"];
+      
+      // Use date range from brand configuration
+      const startDate = brand.startDate || undefined;
+      const endDate = brand.endDate || undefined;
+      
+      const response = await resultsAPI.triggerBrandAnalysis(
+        brand.id || '',
+        brand.keywords || [],
+        platforms,
+        startDate,
+        endDate
+      );
+      
+      // Show popup notification
+      setAnalysisNotification({
+        show: true,
+        type: 'started',
+        brandName: response.brand_name || brand.name || '',
+        analysisId: response.analysis_id || '',
+        estimatedCompletion: response.estimated_completion || '5-10 minutes',
+        platforms: response.platforms || [],
+        keywords: response.keywords || []
+      });
+      
+      console.log("Analysis started:", response);
+    } catch (error) {
+      console.error("Error triggering brand analysis:", error);
+      toast.error("Failed to start brand analysis");
+      setAnalyzingBrand(null);
+    }
   };
 
   const filteredBrands = brands.filter(brand => {
-    const matchesSearch = brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         brand.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         brand.keywords.some(k => k.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = filterStatus === "all" || brand.status === filterStatus;
-    const matchesCategory = filterCategory === "all" || brand.category === filterCategory;
+    const matchesSearch = (brand.name && brand.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (brand.description && brand.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (brand.keywords && brand.keywords.some(k => k.toLowerCase().includes(searchTerm.toLowerCase())));
+    const matchesStatus = filterStatus === "all" || (brand.status && brand.status === filterStatus);
+    const matchesCategory = filterCategory === "all" || (brand.category && brand.category === filterCategory);
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
@@ -116,7 +304,11 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
     }
   };
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category: string | null) => {
+    if (!category) {
+      return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+    
     const colors = [
       'bg-purple-100 text-purple-800 border-purple-300',
       'bg-blue-100 text-blue-800 border-blue-300',
@@ -128,7 +320,7 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
     return colors[index];
   };
 
-  const uniqueCategories = Array.from(new Set(brands.map(brand => brand.category)));
+  const uniqueCategories = Array.from(new Set(brands.map(brand => brand.category).filter(cat => cat && cat !== null && cat !== '')));
 
   return (
     <div className="space-y-6">
@@ -195,15 +387,120 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="postUrls">Post URLs (one per line)</Label>
-                <Textarea
-                  id="postUrls"
-                  value={formData.postUrls}
-                  onChange={(e) => setFormData({ ...formData, postUrls: e.target.value })}
-                  placeholder="https://twitter.com/brandname&#10;https://instagram.com/brandname&#10;https://youtube.com/brandname"
-                  rows={4}
-                />
+              <div className="space-y-4">
+                <Label>Platform URLs</Label>
+                <div className="space-y-3">
+                  {/* Instagram */}
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="instagram"
+                      checked={selectedPlatforms.includes('instagram')}
+                      onChange={() => handlePlatformToggle('instagram')}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="instagram" className="flex-1">Instagram</Label>
+                    {selectedPlatforms.includes('instagram') && (
+                      <Input
+                        placeholder="https://instagram.com/brandname"
+                        value={platformUrls.instagram}
+                        onChange={(e) => handlePlatformUrlChange('instagram', e.target.value)}
+                        className="flex-2"
+                      />
+                    )}
+                  </div>
+
+                  {/* TikTok */}
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="tiktok"
+                      checked={selectedPlatforms.includes('tiktok')}
+                      onChange={() => handlePlatformToggle('tiktok')}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="tiktok" className="flex-1">TikTok</Label>
+                    {selectedPlatforms.includes('tiktok') && (
+                      <Input
+                        placeholder="https://tiktok.com/@brandname"
+                        value={platformUrls.tiktok}
+                        onChange={(e) => handlePlatformUrlChange('tiktok', e.target.value)}
+                        className="flex-2"
+                      />
+                    )}
+                  </div>
+
+                  {/* Twitter/X */}
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="twitter"
+                      checked={selectedPlatforms.includes('twitter')}
+                      onChange={() => handlePlatformToggle('twitter')}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="twitter" className="flex-1">Twitter/X</Label>
+                    {selectedPlatforms.includes('twitter') && (
+                      <Input
+                        placeholder="https://twitter.com/brandname"
+                        value={platformUrls.twitter}
+                        onChange={(e) => handlePlatformUrlChange('twitter', e.target.value)}
+                        className="flex-2"
+                      />
+                    )}
+                  </div>
+
+                  {/* YouTube */}
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="youtube"
+                      checked={selectedPlatforms.includes('youtube')}
+                      onChange={() => handlePlatformToggle('youtube')}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="youtube" className="flex-1">YouTube</Label>
+                    {selectedPlatforms.includes('youtube') && (
+                      <Input
+                        placeholder="https://youtube.com/@brandname"
+                        value={platformUrls.youtube}
+                        onChange={(e) => handlePlatformUrlChange('youtube', e.target.value)}
+                        className="flex-2"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <Label>Date Range for Analysis</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={formData.startDate}
+                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                      max={new Date().toISOString().split('T')[0]}
+                      min={new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                      max={new Date().toISOString().split('T')[0]}
+                      min={formData.startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Select a date range for analysis (maximum 1 year from today)
+                </p>
               </div>
               
               <div className="space-y-2">
@@ -293,17 +590,17 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
       {/* Brands Grid */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredBrands.map((brand) => (
-          <Card key={brand.id} className="hover:shadow-md transition-shadow">
+          <Card key={brand.id || Math.random()} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-base">{brand.name}</CardTitle>
+                  <CardTitle className="text-base">{brand.name || 'Unnamed Brand'}</CardTitle>
                   <div className="flex gap-2">
-                    <Badge variant="outline" className={getStatusColor(brand.status)}>
-                      {brand.status}
+                    <Badge variant="outline" className={getStatusColor(brand.status || 'active')}>
+                      {brand.status || 'active'}
                     </Badge>
                     <Badge variant="outline" className={getCategoryColor(brand.category)}>
-                      {brand.category}
+                      {brand.category || 'No Category'}
                     </Badge>
                   </div>
                 </div>
@@ -311,21 +608,21 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground line-clamp-2">
-                {brand.description}
+                {brand.description || 'No description available'}
               </p>
               
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span>{brand.postUrls.length} post URLs</span>
+                  <span>{brand.postUrls ? brand.postUrls.length : 0} post URLs</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Tag className="h-4 w-4 text-muted-foreground" />
-                  <span>{brand.keywords.length} keywords</span>
+                  <span>{brand.keywords ? brand.keywords.length : 0} keywords</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{brand.competitors.length} competitors</span>
+                  <span>{brand.competitors ? brand.competitors.length : 0} competitors</span>
                 </div>
               </div>
 
@@ -333,12 +630,12 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
               <div className="space-y-2">
                 <h5 className="text-xs font-medium text-muted-foreground">Keywords:</h5>
                 <div className="flex flex-wrap gap-1">
-                  {brand.keywords.slice(0, 4).map((keyword, index) => (
+                  {brand.keywords && brand.keywords.slice(0, 4).map((keyword, index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {keyword}
                     </Badge>
                   ))}
-                  {brand.keywords.length > 4 && (
+                  {brand.keywords && brand.keywords.length > 4 && (
                     <Badge variant="secondary" className="text-xs">
                       +{brand.keywords.length - 4}
                     </Badge>
@@ -350,12 +647,12 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
               <div className="space-y-2">
                 <h5 className="text-xs font-medium text-muted-foreground">Sample Posts:</h5>
                 <div className="space-y-1">
-                  {brand.postUrls.slice(0, 2).map((url, index) => (
+                  {brand.postUrls && brand.postUrls.slice(0, 2).map((url, index) => (
                     <div key={index} className="text-xs p-2 bg-muted rounded text-muted-foreground truncate">
                       {url}
                     </div>
                   ))}
-                  {brand.postUrls.length > 2 && (
+                  {brand.postUrls && brand.postUrls.length > 2 && (
                     <div className="text-xs text-muted-foreground">
                       +{brand.postUrls.length - 2} more posts
                     </div>
@@ -380,6 +677,20 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => handleTriggerAnalysis(brand)}
+                    disabled={analyzingBrand === (brand.id || '')}
+                    className="h-8 w-8 p-0"
+                    title="Trigger Analysis"
+                  >
+                    {analyzingBrand === (brand.id || '') ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => handleEdit(brand)}
                     className="h-8 w-8 p-0"
                   >
@@ -388,7 +699,7 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleDelete(brand.id)}
+                    onClick={() => handleDelete(brand.id || '')}
                     className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -419,6 +730,120 @@ export function BrandManagement({ onSelectBrand }: BrandManagementProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Analysis Notification Popup */}
+      <Dialog open={analysisNotification.show} onOpenChange={(open) => {
+        if (!open) {
+          setAnalysisNotification({ ...analysisNotification, show: false });
+          setAnalyzingBrand(null);
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              {analysisNotification.type === 'started' ? 'Analysis Started' : 'Analysis Completed'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {analysisNotification.type === 'started' ? (
+              <>
+                <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex-shrink-0">
+                    <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900">
+                      Brand analysis for <span className="font-semibold">{analysisNotification.brandName}</span> is now running in the background.
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Estimated completion: {analysisNotification.estimatedCompletion}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Analysis ID</Label>
+                    <p className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded mt-1">
+                      {analysisNotification.analysisId}
+                    </p>
+                  </div>
+
+                  {analysisNotification.platforms && analysisNotification.platforms.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Platforms</Label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {analysisNotification.platforms.map((platform) => (
+                          <Badge key={platform} variant="outline" className="capitalize">
+                            {platform}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisNotification.keywords && analysisNotification.keywords.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Keywords</Label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {analysisNotification.keywords.map((keyword, index) => (
+                          <Badge key={index} variant="secondary">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-600">
+                    You can continue working while the analysis runs. We'll update the results automatically when it's complete.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-900">
+                      Analysis for <span className="font-semibold">{analysisNotification.brandName}</span> has been completed successfully.
+                    </p>
+                    <p className="text-xs text-green-700 mt-1">
+                      The results are now ready for review.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-600">
+                    Click "Close" to view the updated analysis results in your dashboard.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <Button 
+              onClick={() => {
+                setAnalysisNotification({ ...analysisNotification, show: false });
+                setAnalyzingBrand(null);
+              }}
+              className="px-6"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

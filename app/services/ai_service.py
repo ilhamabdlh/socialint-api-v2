@@ -208,4 +208,118 @@ Respond only with an existing or a new topic label."""
             demographics = list(executor.map(get_demographics, batch_data))
         
         return demographics
+    
+    async def analyze_topics(self, text: str) -> dict:
+        """Analyze topics in text"""
+        try:
+            prompt = f"""
+            Analyze the following text and identify the main topics. 
+            Return a JSON response with this format:
+            {{
+                "topics": [
+                    {{"topic": "topic_name", "relevance": 0.8, "confidence": 0.9}}
+                ]
+            }}
+            
+            Text: {text}
+            """
+            
+            response = self.model.generate_content(prompt)
+            if response and response.text:
+                import json
+                try:
+                    return {"success": True, "data": json.loads(response.text)}
+                except:
+                    # Fallback if JSON parsing fails
+                    return {
+                        "success": True, 
+                        "data": {
+                            "topics": [{"topic": "general", "relevance": 0.5, "confidence": 0.7}]
+                        }
+                    }
+            return {"success": False, "message": "No response from AI"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    
+    async def analyze_sentiment(self, text: str) -> dict:
+        """Analyze sentiment of text"""
+        try:
+            prompt = f"""
+            Analyze the sentiment of the following text. 
+            Return a JSON response with this format:
+            {{
+                "sentiment": "positive/negative/neutral",
+                "sentiment_score": 0.8,
+                "confidence": 0.9
+            }}
+            
+            Text: {text}
+            """
+            
+            response = self.model.generate_content(prompt)
+            if response and response.text:
+                import json
+                try:
+                    return {"success": True, "data": json.loads(response.text)}
+                except:
+                    # Fallback if JSON parsing fails
+                    return {
+                        "success": True,
+                        "data": {
+                            "sentiment": "neutral",
+                            "sentiment_score": 0.0,
+                            "confidence": 0.5
+                        }
+                    }
+            return {"success": False, "message": "No response from AI"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    
+    async def analyze_emotions(self, text: str) -> dict:
+        """Analyze emotions in text"""
+        try:
+            prompt = f"""
+            Analyze the emotions expressed in the following text. 
+            Return a JSON response with this format:
+            {{
+                "emotions": {{
+                    "joy": 0.3,
+                    "anger": 0.1,
+                    "fear": 0.0,
+                    "sadness": 0.1,
+                    "surprise": 0.2,
+                    "trust": 0.4,
+                    "anticipation": 0.3,
+                    "disgust": 0.0
+                }}
+            }}
+            
+            Text: {text}
+            """
+            
+            response = self.model.generate_content(prompt)
+            if response and response.text:
+                import json
+                try:
+                    return {"success": True, "data": json.loads(response.text)}
+                except:
+                    # Fallback if JSON parsing fails
+                    return {
+                        "success": True,
+                        "data": {
+                            "emotions": {
+                                "joy": 0.2,
+                                "anger": 0.1,
+                                "fear": 0.0,
+                                "sadness": 0.1,
+                                "surprise": 0.1,
+                                "trust": 0.3,
+                                "anticipation": 0.2,
+                                "disgust": 0.0
+                            }
+                        }
+                    }
+            return {"success": False, "message": "No response from AI"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 

@@ -172,6 +172,14 @@ export interface Campaign {
   end_date: string;
   target_audience: string[];
   platforms: string[];
+  brand_name?: string;
+  keywords?: string[];
+  post_urls?: {
+    url: string;
+    platform: string;
+    title?: string;
+    description?: string;
+  }[];
 }
 
 export interface Brand {
@@ -180,14 +188,19 @@ export interface Brand {
   description: string;
   postUrls: string[];
   keywords: string[];
+  platforms: string[];
   category: string;
   status: 'active' | 'inactive';
   created_date: string;
   competitors: string[];
+  startDate?: string;
+  endDate?: string;
+  created_from?: string;
 }
 
 export interface Content {
   id: string;
+  // Basic Content Info
   title: string;
   description: string;
   postUrl: string;
@@ -197,6 +210,21 @@ export interface Content {
   publish_date: string;
   status: 'published' | 'draft' | 'archived';
   tags: string[];
+  
+  // Content Metadata
+  brand_name?: string;
+  campaign_id?: string;
+  keywords: string[];
+  target_audience: string[];
+  content_category: string;
+  language: string;
+  priority: string;
+  
+  // Analysis Results
+  analysis_status: string;
+  dominant_topic?: string;
+  dominant_emotion?: string;
+  sentiment_overall?: number;
 }
 
 export interface AnalysisResult {
@@ -336,6 +364,7 @@ export const brands: Brand[] = [
       'https://linkedin.com/company/tesla-motors'
     ],
     keywords: ['tesla', 'electric vehicle', 'ev', 'elon musk', 'model s', 'model 3', 'model x', 'model y', 'cybertruck'],
+    platforms: ['twitter', 'instagram', 'youtube', 'linkedin'],
     category: 'Automotive',
     status: 'active',
     created_date: '2024-01-01',
@@ -350,6 +379,7 @@ export const brands: Brand[] = [
       'https://linkedin.com/showcase/tesla-energy'
     ],
     keywords: ['tesla energy', 'solar panels', 'solar roof', 'powerwall', 'megapack', 'renewable energy'],
+    platforms: ['twitter', 'linkedin'],
     category: 'Energy',
     status: 'active',
     created_date: '2024-01-01',
@@ -364,6 +394,7 @@ export const brands: Brand[] = [
       'https://youtube.com/playlist?list=tesla_fsd_demos'
     ],
     keywords: ['autopilot', 'full self driving', 'fsd', 'autonomous', 'self driving', 'tesla ai'],
+    platforms: ['twitter', 'youtube'],
     category: 'Technology',
     status: 'active',
     created_date: '2024-01-01',
@@ -382,7 +413,18 @@ export const contents: Content[] = [
     author: 'Tesla',
     publish_date: '2025-01-20',
     status: 'published',
-    tags: ['cybertruck', 'delivery', 'launch', 'electric truck']
+    tags: ['cybertruck', 'delivery', 'launch', 'electric truck'],
+    brand_name: 'Tesla',
+    campaign_id: 'cybertruck-launch-2025',
+    keywords: ['cybertruck', 'delivery', 'tesla', 'electric vehicle'],
+    target_audience: ['ev enthusiasts', 'tesla fans', 'tech early adopters'],
+    content_category: 'promotional',
+    language: 'en',
+    priority: 'high',
+    analysis_status: 'completed',
+    dominant_topic: 'product launch',
+    dominant_emotion: 'excitement',
+    sentiment_overall: 0.8
   },
   {
     id: 'content_002',
@@ -394,7 +436,18 @@ export const contents: Content[] = [
     author: 'Elon Musk',
     publish_date: '2025-01-25',
     status: 'published',
-    tags: ['fsd', 'safety', 'beta', 'autonomous driving']
+    tags: ['fsd', 'safety', 'beta', 'autonomous driving'],
+    brand_name: 'Tesla',
+    campaign_id: undefined,
+    keywords: ['fsd', 'autonomous driving', 'safety', 'beta'],
+    target_audience: ['tech enthusiasts', 'autonomous vehicle followers'],
+    content_category: 'educational',
+    language: 'en',
+    priority: 'medium',
+    analysis_status: 'completed',
+    dominant_topic: 'technology update',
+    dominant_emotion: 'trust',
+    sentiment_overall: 0.6
   },
   {
     id: 'content_003',
@@ -406,7 +459,18 @@ export const contents: Content[] = [
     author: 'u/TeslaOwner2025',
     publish_date: '2025-01-22',
     status: 'published',
-    tags: ['cybertruck', 'review', 'customer experience', 'electric truck']
+    tags: ['cybertruck', 'review', 'customer experience', 'electric truck'],
+    brand_name: 'Tesla',
+    campaign_id: undefined,
+    keywords: ['cybertruck', 'review', 'customer experience'],
+    target_audience: ['potential buyers', 'tesla community'],
+    content_category: 'general',
+    language: 'en',
+    priority: 'medium',
+    analysis_status: 'pending',
+    dominant_topic: 'product review',
+    dominant_emotion: 'neutral',
+    sentiment_overall: 0.2
   },
   {
     id: 'content_004',
@@ -418,7 +482,18 @@ export const contents: Content[] = [
     author: 'Tesla',
     publish_date: '2025-01-18',
     status: 'published',
-    tags: ['supercharger', 'charging', 'infrastructure', 'milestone']
+    tags: ['supercharger', 'charging', 'infrastructure', 'milestone'],
+    brand_name: 'Tesla',
+    campaign_id: undefined,
+    keywords: ['supercharger', 'charging network', 'infrastructure', 'milestone'],
+    target_audience: ['business professionals', 'ev industry', 'investors'],
+    content_category: 'news',
+    language: 'en',
+    priority: 'high',
+    analysis_status: 'completed',
+    dominant_topic: 'infrastructure',
+    dominant_emotion: 'pride',
+    sentiment_overall: 0.9
   }
 ];
 

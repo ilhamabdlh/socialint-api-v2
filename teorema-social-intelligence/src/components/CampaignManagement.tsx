@@ -30,6 +30,10 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     isOpen: boolean;
     campaignName: string;
     type: 'started' | 'completed' | 'failed';
+    analysisId?: string;
+    platforms?: string[];
+    keywords?: string[];
+    estimatedCompletion?: string;
   }>({
     isOpen: false,
     campaignName: '',
@@ -156,6 +160,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     const dateValidation = validateDateRange(formData.start_date, formData.end_date);
     return formData.name.trim() !== '' && 
            formData.description.trim() !== '' && 
+           formData.brand_name.trim() !== '' &&
            formData.selectedPlatforms.length > 0 &&
            dateValidation.isValid;
   };
@@ -164,7 +169,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    brand_name: "hufagripp",
+    brand_name: "",
     keywords: "",
     postUrls: "",
     type: "product_launch" as Campaign['type'],
@@ -195,14 +200,17 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
         id: c.id,
         name: c.campaign_name,
         description: c.description,
-        postUrls: [], // Will be populated from post_urls_count
+        postUrls: c.post_urls?.map(p => p.url) || [], // Convert post_urls to string array
         type: c.campaign_type as Campaign['type'],
         status: c.status as Campaign['status'],
         created_date: c.created_at.split('T')[0],
         start_date: c.start_date.split('T')[0],
         end_date: c.end_date.split('T')[0],
         target_audience: c.target_audiences,
-        platforms: c.platforms
+        platforms: c.platforms,
+        brand_name: c.brand_name, // ✅ Add brand name
+        keywords: c.keywords, // ✅ Add keywords
+        post_urls: c.post_urls // ✅ Add detailed post URLs
       }));
       
       setCampaigns(convertedCampaigns);
@@ -229,7 +237,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     setFormData({
       name: "",
       description: "",
-      brand_name: "hufagripp",
+      brand_name: "",
       keywords: "",
       postUrls: "",
       type: "product_launch",
@@ -312,8 +320,8 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
     setFormData({
       name: campaign.name,
       description: campaign.description,
-      brand_name: "hufagripp",
-      keywords: "",
+      brand_name: campaign.brand_name || "",
+      keywords: campaign.keywords ? campaign.keywords.join(', ') : "",
       postUrls: campaign.postUrls.join('\n'),
       type: campaign.type,
       status: campaign.status,
@@ -351,6 +359,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
         description: formData.description,
         campaign_type: formData.type,
         status: formData.status as any,
+        brand_name: formData.brand_name,
         keywords: formData.keywords.split(',').map(k => k.trim()).filter(k => k),
         target_audiences: formData.target_audience.split(',').map(a => a.trim()).filter(a => a),
         platforms: formData.selectedPlatforms as any,
@@ -412,7 +421,11 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
       setNotificationState({
         isOpen: true,
         campaignName: campaign.name,
-        type: 'started'
+        type: 'started',
+        analysisId: `campaign-${campaignId}-${Date.now()}`,
+        platforms: campaign.platforms || ['tiktok', 'instagram', 'twitter', 'youtube'],
+        keywords: campaign.keywords || campaign.target_audience || [],
+        estimatedCompletion: '5-10 minutes'
       });
 
       // Call API to trigger analysis
@@ -544,7 +557,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     id="brand_name"
                     value={formData.brand_name}
                     onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })}
-                    placeholder="hufagripp"
+                    placeholder="Enter brand name"
                   />
                 </div>
                 <div className="space-y-2">
@@ -553,7 +566,7 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
                     id="keywords"
                     value={formData.keywords}
                     onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
-                    placeholder="hufagrip, hufagripp, obat batuk"
+                    placeholder="Enter keywords separated by commas"
                   />
                 </div>
               </div>
@@ -875,6 +888,10 @@ export function CampaignManagement({ onSelectCampaign }: CampaignManagementProps
         onClose={handleCloseNotification}
         campaignName={notificationState.campaignName}
         type={notificationState.type}
+        analysisId={notificationState.analysisId}
+        platforms={notificationState.platforms}
+        keywords={notificationState.keywords}
+        estimatedCompletion={notificationState.estimatedCompletion}
       />
     </div>
   );

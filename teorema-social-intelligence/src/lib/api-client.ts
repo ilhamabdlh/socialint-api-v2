@@ -47,6 +47,7 @@ export interface CampaignUpdate {
   description?: string;
   campaign_type?: string;
   status?: 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+  brand_name?: string;
   keywords?: string[];
   target_audiences?: string[];
   platforms?: string[];
@@ -69,6 +70,12 @@ export interface CampaignResponse {
   target_audiences: string[];
   platforms: string[];
   post_urls_count: number;
+  post_urls: {
+    url: string;
+    platform: string;
+    title?: string;
+    description?: string;
+  }[];
   
   start_date: string;
   end_date: string;
@@ -117,10 +124,124 @@ export interface BrandResponse {
   name: string;
   description?: string;
   keywords: string[];
-  competitors: string[];
+  platforms: string[];
+  postUrls: string[];
+  category?: string;
   industry?: string;
+  competitors: string[];
+  startDate?: string;
+  endDate?: string;
+  created_from: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ContentCreate {
+  // Basic Content Info
+  title: string;
+  description: string;
+  content_text: string;
+  post_url: string;
+  platform: string;
+  content_type: string;
+  author: string;
+  publish_date: string;
+  status: string;
+  tags: string[];
+  
+  // Content Metadata
+  brand_name?: string;
+  campaign_id?: string;
+  keywords: string[];
+  target_audience: string[];
+  content_category: string;
+  language: string;
+  priority: string;
+  
+  // Legacy fields for backward compatibility
+  text?: string;
+  url?: string;
+}
+
+export interface ContentResponse {
+  id: string;
+  // Basic Content Info
+  title: string;
+  description: string;
+  content_text: string;
+  post_url: string;
+  platform: string;
+  content_type: string;
+  author: string;
+  publish_date: string;
+  status: string;
+  tags: string[];
+  
+  // Content Metadata
+  brand_name?: string;
+  campaign_id?: string;
+  keywords: string[];
+  target_audience: string[];
+  content_category: string;
+  language: string;
+  priority: string;
+  
+  // Analysis Results - Topic Analysis
+  topics: any[];
+  dominant_topic?: string;
+  
+  // Analysis Results - Sentiment Analysis
+  sentiment_overall?: number;
+  sentiment_positive?: number;
+  sentiment_negative?: number;
+  sentiment_neutral?: number;
+  sentiment_confidence?: number;
+  sentiment_breakdown: any[];
+  
+  // Analysis Results - Emotion Analysis
+  emotion_joy?: number;
+  emotion_anger?: number;
+  emotion_fear?: number;
+  emotion_sadness?: number;
+  emotion_surprise?: number;
+  emotion_trust?: number;
+  emotion_anticipation?: number;
+  emotion_disgust?: number;
+  dominant_emotion?: string;
+  emotion_distribution: any[];
+  
+  // Performance Metrics
+  engagement_score?: number;
+  reach_estimate?: number;
+  virality_score?: number;
+  content_health_score?: number;
+  
+  // Demographics Analysis
+  author_age_group?: string;
+  author_gender?: string;
+  author_location_hint?: string;
+  target_audience_match?: number;
+  
+  // Competitive Analysis
+  similar_content_count?: number;
+  benchmark_engagement?: number;
+  benchmark_sentiment?: number;
+  benchmark_topic_trend?: number;
+  
+  // Analysis Status
+  analysis_status: string;
+  analysis_type: string;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+  analyzed_at?: string;
+  
+  // Legacy fields for backward compatibility
+  text?: string;
+  url?: string;
+  sentiment?: string;
+  topic?: string;
 }
 
 // Analysis Types
@@ -311,6 +432,55 @@ export const brandAPI = {
 };
 
 // =============================================================================
+// Content API
+// =============================================================================
+
+export const contentAPI = {
+  /**
+   * Create a new content
+   */
+  async create(data: ContentCreate): Promise<ContentResponse> {
+    return fetchAPI<ContentResponse>('/contents/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * List all contents
+   */
+  async list(skip: number = 0, limit: number = 100): Promise<ContentResponse[]> {
+    return fetchAPI<ContentResponse[]>(`/contents/?skip=${skip}&limit=${limit}`);
+  },
+
+  /**
+   * Get content by ID
+   */
+  async get(contentId: string): Promise<ContentResponse> {
+    return fetchAPI<ContentResponse>(`/contents/${contentId}`);
+  },
+
+  /**
+   * Update content
+   */
+  async update(contentId: string, data: Partial<ContentCreate>): Promise<ContentResponse> {
+    return fetchAPI<ContentResponse>(`/contents/${contentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Delete content
+   */
+  async delete(contentId: string): Promise<{ message: string }> {
+    return fetchAPI<{ message: string }>(`/contents/${contentId}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// =============================================================================
 // Analysis API
 // =============================================================================
 
@@ -386,17 +556,22 @@ export const scrapingAPI = {
 
 export const resultsAPI = {
   /**
-   * Get brand summary
+   * Get brand summary (legacy - use getBrandAnalysisSummary instead)
    */
-  async getBrandSummary(brandName: string): Promise<any> {
-    return fetchAPI<any>(`/results/brands/${brandName}/summary`);
+  async getBrandSummary(brandIdentifier: string, startDate?: string, endDate?: string, platforms?: string, days: number = 30): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/summary?${params.toString()}`);
   },
 
   /**
    * Get brand posts
    */
   async getBrandPosts(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     skip: number = 0,
     limit: number = 100
@@ -407,98 +582,428 @@ export const resultsAPI = {
     });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<any>(`/results/brands/${brandName}/posts?${params.toString()}`);
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/posts?${params.toString()}`);
   },
 
   /**
-   * Get trending topics
+   * Get trending topics (legacy - use getBrandTrendingTopics instead)
    */
   async getTrendingTopics(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     limit: number = 10
   ): Promise<any> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<any>(`/results/brands/${brandName}/trending-topics?${params.toString()}`);
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/trending-topics?${params.toString()}`);
   },
 
   /**
-   * Get sentiment timeline
+   * Get sentiment timeline (legacy - use getBrandSentimentTimeline instead)
    */
   async getSentimentTimeline(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     days: number = 30
   ): Promise<any> {
     const params = new URLSearchParams({ days: days.toString() });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<any>(`/results/brands/${brandName}/sentiment-timeline?${params.toString()}`);
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/sentiment-timeline?${params.toString()}`);
   },
 
   /**
    * Get audience insights
    */
-  async getAudienceInsights(brandName: string): Promise<any> {
-    return fetchAPI<any>(`/results/brands/${brandName}/audience-insights`);
+  async getAudienceInsights(brandIdentifier: string): Promise<any> {
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/audience-insights`);
   },
 
   /**
-   * Get emotions analysis
+   * Get emotions analysis (legacy - use getBrandEmotions instead)
    */
   async getEmotions(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     limit: number = 10000
   ): Promise<any> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<any>(`/results/brands/${brandName}/emotions?${params.toString()}`);
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/emotions?${params.toString()}`);
   },
 
   /**
-   * Get demographics analysis
+   * Get demographics analysis (legacy - use getBrandDemographics instead)
    */
   async getDemographics(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     limit: number = 10000
   ): Promise<any> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<any>(`/results/brands/${brandName}/demographics?${params.toString()}`);
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/demographics?${params.toString()}`);
   },
 
   /**
-   * Get engagement patterns
+   * Get engagement patterns (legacy - use getBrandEngagementPatterns instead)
    */
   async getEngagementPatterns(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     limit: number = 10000
   ): Promise<EngagementPatterns> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<EngagementPatterns>(`/results/brands/${brandName}/engagement-patterns?${params.toString()}`);
+    return fetchAPI<EngagementPatterns>(`/results/brands/${brandIdentifier}/engagement-patterns?${params.toString()}`);
   },
 
   /**
-   * Get performance metrics
+   * Get performance metrics (legacy - use getBrandPerformance instead)
    */
   async getPerformance(
-    brandName: string,
+    brandIdentifier: string,
     platform?: string,
     days: number = 30
   ): Promise<any> {
     const params = new URLSearchParams({ days: days.toString() });
     if (platform) params.append('platform', platform);
     
-    return fetchAPI<any>(`/results/brands/${brandName}/performance?${params.toString()}`);
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/performance?${params.toString()}`);
+  },
+
+  // ============= BRAND ANALYSIS ENDPOINTS =============
+
+  /**
+   * Get brand analysis summary
+   */
+  async getBrandAnalysisSummary(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/summary?${params.toString()}`);
+  },
+
+  /**
+   * Get brand sentiment timeline
+   */
+  async getBrandSentimentTimeline(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/sentiment-timeline?${params.toString()}`);
+  },
+
+  /**
+   * Get brand trending topics
+   */
+  async getBrandTrendingTopics(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    limit: number = 10
+  ): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/trending-topics?${params.toString()}`);
+  },
+
+  /**
+   * Get brand engagement patterns
+   */
+  async getBrandEngagementPatterns(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/engagement-patterns?${params.toString()}`);
+  },
+
+  /**
+   * Get brand performance metrics
+   */
+  async getBrandPerformance(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/performance?${params.toString()}`);
+  },
+
+  /**
+   * Get brand emotion analysis
+   */
+  async getBrandEmotions(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/emotions?${params.toString()}`);
+  },
+
+  /**
+   * Get brand demographics
+   */
+  async getBrandDemographics(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/demographics?${params.toString()}`);
+  },
+
+  /**
+   * Get brand competitive analysis
+   */
+  async getBrandCompetitive(
+    brandIdentifier: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/brands/${brandIdentifier}/competitive?${params.toString()}`);
+  },
+
+  // ============= CONTENT ANALYSIS ENDPOINTS =============
+
+  /**
+   * Get content analysis summary
+   */
+  async getContentAnalysisSummary(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/summary?${params.toString()}`);
+  },
+
+  /**
+   * Get content sentiment timeline
+   */
+  async getContentSentimentTimeline(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/sentiment-timeline?${params.toString()}`);
+  },
+
+  /**
+   * Get content trending topics
+   */
+  async getContentTrendingTopics(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    limit: number = 10
+  ): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/trending-topics?${params.toString()}`);
+  },
+
+  /**
+   * Get content engagement patterns
+   */
+  async getContentEngagementPatterns(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/engagement-patterns?${params.toString()}`);
+  },
+
+  /**
+   * Get content performance metrics
+   */
+  async getContentPerformance(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/performance?${params.toString()}`);
+  },
+
+  /**
+   * Get content emotion analysis
+   */
+  async getContentEmotions(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/emotions?${params.toString()}`);
+  },
+
+  /**
+   * Get content demographics
+   */
+  async getContentDemographics(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/demographics?${params.toString()}`);
+  },
+
+  /**
+   * Get content competitive analysis
+   */
+  async getContentCompetitive(
+    contentId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    
+    return fetchAPI<any>(`/results/contents/${contentId}/competitive?${params.toString()}`);
+  },
+
+  // ============= TRIGGER ANALYSIS ENDPOINTS =============
+
+  /**
+   * Trigger brand analysis
+   */
+  async triggerBrandAnalysis(
+    brandId: string,
+    keywords?: string[],
+    platforms?: string[],
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    return fetchAPI<any>(`/results/brands/${brandId}/trigger-analysis`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        keywords,
+        platforms,
+        start_date: startDate,
+        end_date: endDate
+      })
+    });
+  },
+
+  /**
+   * Trigger content analysis
+   */
+  async triggerContentAnalysis(
+    contentId: string,
+    analysisType: string = "comprehensive",
+    parameters?: any
+  ): Promise<any> {
+    return fetchAPI<any>(`/results/contents/${contentId}/trigger-analysis`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        analysis_type: analysisType,
+        parameters
+      })
+    });
   },
 };
 

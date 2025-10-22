@@ -92,7 +92,7 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
         // Extract platforms from post URLs
         const brand = entity as Brand;
         const platforms = new Set<string>();
-        brand.postUrls.forEach(url => {
+        brand.postUrls?.forEach(url => {
           if (url.includes('twitter.com') || url.includes('x.com')) platforms.add('Twitter/X');
           if (url.includes('facebook.com')) platforms.add('Facebook');
           if (url.includes('instagram.com')) platforms.add('Instagram');
@@ -110,11 +110,13 @@ export function AnalysisFilters({ entity, entityType, filters, onFiltersChange }
   const getAvailablePosts = () => {
     switch (entityType) {
       case 'campaign':
-        return (entity as Campaign).postUrls;
+        return (entity as Campaign).postUrls || [];
       case 'brand':
-        return (entity as Brand).postUrls;
+        return (entity as Brand).postUrls || [];
       case 'content':
-        return [(entity as Content).postUrl];
+        return [(entity as Content).postUrl].filter(Boolean);
+      default:
+        return [];
     }
   };
 

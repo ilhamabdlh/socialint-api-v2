@@ -6,8 +6,7 @@ from app.models.database import (
     Brand, Post, Comment, AnalysisJob, AudienceProfile, TopicInterest,
     PlatformType, AnalysisStatusType, BrandAnalysis, BrandMetrics,
     BrandSentimentTimeline, BrandTrendingTopics, BrandDemographics,
-    BrandEngagementPatterns, BrandPerformance, BrandEmotions, BrandCompetitive,
-    Campaign, CampaignMetrics
+    BrandEngagementPatterns, BrandPerformance, BrandEmotions, BrandCompetitive
 )
 from app.services.database_service import db_service
 from app.utils.data_helpers import consolidate_demographics, analyze_engagement_patterns, normalize_topic_labeling, normalize_location
@@ -159,16 +158,16 @@ async def get_brand_details(brand_identifier: str):
 
 # ============= POSTS ENDPOINTS =============
 
-@router.get("/brands/{brand_identifier}/posts", response_model=List[PostSummary])
+@router.get("/brands/{brand_name}/posts", response_model=List[PostSummary])
 async def get_brand_posts(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None,
     sentiment: Optional[str] = None,
     topic: Optional[str] = None,
     limit: int = Query(default=50, le=500)
 ):
-    """Get posts for a brand with filters using ObjectID or brand name"""
-    brand = await get_brand_by_identifier(brand_identifier)
+    """Get posts for a brand with filters"""
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -363,13 +362,13 @@ async def get_trending_topics(
 
 # ============= AUDIENCE INSIGHTS ENDPOINTS =============
 
-@router.get("/brands/{brand_identifier}/audience-insights", response_model=List[AudienceInsight])
+@router.get("/brands/{brand_name}/audience-insights", response_model=List[AudienceInsight])
 async def get_audience_insights(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None
 ):
-    """Get audience insights for a brand using ObjectID or brand name"""
-    brand = await get_brand_by_identifier(brand_identifier)
+    """Get audience insights for a brand"""
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -439,15 +438,13 @@ async def get_brand_summary_old(
             posts = recent_posts
     
     # Calculate metrics
-    total_engagement = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in posts)
+    total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in posts)
     avg_engagement = total_engagement / len(posts) if posts else 0
     
     sentiment_dist = {"Positive": 0, "Negative": 0, "Neutral": 0}
     for post in posts:
         if post.sentiment:
-            # Convert SentimentType enum to string for dictionary key
-            sentiment_key = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-            sentiment_dist[sentiment_key] += 1
+            sentiment_dist[post.sentiment] += 1
     
     # Get trending topics
     trending = await db_service.get_trending_topics(brand, limit=5)
@@ -475,17 +472,17 @@ async def get_brand_summary_old(
         ]
     }
 
-@router.get("/brands/{brand_identifier}/sentiment-timeline")
+@router.get("/brands/{brand_name}/sentiment-timeline")
 async def get_sentiment_timeline(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None,
     days: int = Query(default=30),
     start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(default=None, description="End date (YYYY-MM-DD)"),
     platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
-    """Get sentiment timeline (daily breakdown) with filtering using ObjectID or brand name"""
-    brand = await get_brand_by_identifier(brand_identifier)
+    """Get sentiment timeline (daily breakdown) with filtering"""
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -542,14 +539,12 @@ async def get_sentiment_timeline(
                 }
             
             timeline[date_key]["total_posts"] += 1
-            timeline[date_key]["total_likes"] += int(post.like_count or 0)
-            timeline[date_key]["total_comments"] += int(post.comment_count or 0)
-            timeline[date_key]["total_shares"] += int(post.share_count or 0)
+            timeline[date_key]["total_likes"] += post.like_count or 0
+            timeline[date_key]["total_comments"] += post.comment_count or 0
+            timeline[date_key]["total_shares"] += post.share_count or 0
             
             if post.sentiment:
-                # Convert SentimentType enum to string for dictionary key
-                sentiment_key = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                timeline[date_key][sentiment_key] += 1
+                timeline[date_key][post.sentiment] += 1
             else:
                 # If no sentiment, assign based on engagement
                 if (post.like_count or 0) > 10:
@@ -574,14 +569,12 @@ async def get_sentiment_timeline(
                 }
             
             timeline[date_key]["total_posts"] += 1
-            timeline[date_key]["total_likes"] += int(post.like_count or 0)
-            timeline[date_key]["total_comments"] += int(post.comment_count or 0)
-            timeline[date_key]["total_shares"] += int(post.share_count or 0)
+            timeline[date_key]["total_likes"] += post.like_count or 0
+            timeline[date_key]["total_comments"] += post.comment_count or 0
+            timeline[date_key]["total_shares"] += post.share_count or 0
             
             if post.sentiment:
-                # Convert SentimentType enum to string for dictionary key
-                sentiment_key = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                timeline[date_key][sentiment_key] += 1
+                timeline[date_key][post.sentiment] += 1
             else:
                 # If no sentiment, assign based on engagement
                 if (post.like_count or 0) > 10:
@@ -632,9 +625,9 @@ async def get_sentiment_timeline(
         "timeline": processed_timeline
     }
 
-@router.get("/brands/{brand_identifier}/emotions")
+@router.get("/brands/{brand_name}/emotions")
 async def get_emotions_analysis(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None,
     limit: int = Query(default=10000),
     start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
@@ -642,10 +635,10 @@ async def get_emotions_analysis(
     platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get emotions analysis for a brand with filtering using ObjectID or brand name
+    Get emotions analysis for a brand with filtering
     Returns distribution of emotions: joy, anger, sadness, fear, surprise, disgust, trust, anticipation
     """
-    brand = await get_brand_by_identifier(brand_identifier)
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -706,9 +699,9 @@ async def get_emotions_analysis(
         "dominant_emotion": emotions_data[0]["emotion"] if emotions_data else None
     }
 
-@router.get("/brands/{brand_identifier}/demographics")
+@router.get("/brands/{brand_name}/demographics")
 async def get_demographics_analysis(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None,
     limit: int = Query(default=10000),
     start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
@@ -716,10 +709,10 @@ async def get_demographics_analysis(
     platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get demographics analysis for a brand's audience with filtering using ObjectID or brand name
+    Get demographics analysis for a brand's audience with filtering
     Returns age groups, gender distribution, and location insights
     """
-    brand = await get_brand_by_identifier(brand_identifier)
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -800,9 +793,9 @@ async def get_demographics_analysis(
         "top_locations": location_data
     }
 
-@router.get("/brands/{brand_identifier}/engagement-patterns")
+@router.get("/brands/{brand_name}/engagement-patterns")
 async def get_engagement_patterns(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None,
     limit: int = Query(default=10000),
     start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
@@ -810,10 +803,10 @@ async def get_engagement_patterns(
     platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get engagement patterns analysis for a brand with filtering using ObjectID or brand name
+    Get engagement patterns analysis for a brand with filtering
     Returns peak hours, active days, and average engagement rate
     """
-    brand = await get_brand_by_identifier(brand_identifier)
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -892,9 +885,9 @@ async def get_engagement_patterns(
 
 # ============= PERFORMANCE METRICS ENDPOINTS =============
 
-@router.get("/brands/{brand_identifier}/performance")
+@router.get("/brands/{brand_name}/performance")
 async def get_performance_metrics(
-    brand_identifier: str,
+    brand_name: str,
     platform: Optional[PlatformType] = None,
     days: int = Query(default=30),
     start_date: Optional[str] = Query(default=None, description="Start date (YYYY-MM-DD)"),
@@ -902,10 +895,10 @@ async def get_performance_metrics(
     platforms: Optional[str] = Query(default=None, description="Comma-separated platform names")
 ):
     """
-    Get performance metrics for a brand with filtering using ObjectID or brand name
+    Get performance metrics for a brand with filtering
     Returns engagement rates, reach, and other performance indicators
     """
-    brand = await get_brand_by_identifier(brand_identifier)
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -947,9 +940,9 @@ async def get_performance_metrics(
     
     # Calculate performance metrics
     total_posts = len(posts)
-    total_likes = sum(int(p.like_count or 0) for p in posts)
-    total_comments = sum(int(p.comment_count or 0) for p in posts)
-    total_shares = sum(int(p.share_count or 0) for p in posts)
+    total_likes = sum(p.like_count for p in posts)
+    total_comments = sum(p.comment_count for p in posts)
+    total_shares = sum(p.share_count for p in posts)
     total_engagement = total_likes + total_comments + total_shares
     
     # Calculate averages
@@ -958,9 +951,10 @@ async def get_performance_metrics(
     avg_shares_per_post = total_shares / total_posts if total_posts > 0 else 0
     avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
     
-    # Engagement rate calculation: total_engagement / total_posts
-    estimated_reach = total_engagement * 10  # Assuming reach is roughly 10x the engagement for social media
-    engagement_rate = (total_engagement / total_posts) if total_posts > 0 else 0
+    # Engagement rate calculation (simplified)
+    # Assuming reach is roughly 10x the engagement for social media
+    estimated_reach = total_engagement * 10
+    engagement_rate = (total_engagement / estimated_reach) * 100 if estimated_reach > 0 else 0
     
     # Platform breakdown
     platform_breakdown = {}
@@ -976,9 +970,9 @@ async def get_performance_metrics(
             }
         
         platform_breakdown[platform_name]['posts'] += 1
-        platform_breakdown[platform_name]['engagement'] += int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
-        platform_breakdown[platform_name]['likes'] += int(post.like_count or 0)
-        platform_breakdown[platform_name]['comments'] += int(post.comment_count or 0)
+        platform_breakdown[platform_name]['engagement'] += post.like_count + post.comment_count + post.share_count
+        platform_breakdown[platform_name]['likes'] += post.like_count
+        platform_breakdown[platform_name]['comments'] += post.comment_count
         platform_breakdown[platform_name]['shares'] += post.share_count
     
     # Calculate platform-specific engagement rates
@@ -1005,16 +999,16 @@ async def get_performance_metrics(
 
 # ============= COMPETITIVE ANALYSIS ENDPOINTS =============
 
-@router.get("/brands/{brand_identifier}/competitive")
+@router.get("/brands/{brand_name}/competitive")
 async def get_competitive_analysis(
-    brand_identifier: str,
+    brand_name: str,
     days: int = Query(default=30)
 ):
     """
-    Get competitive analysis for a brand using ObjectID or brand name
+    Get competitive analysis for a brand
     Compares brand performance with industry benchmarks
     """
-    brand = await get_brand_by_identifier(brand_identifier)
+    brand = await db_service.get_brand(brand_name)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     
@@ -1022,7 +1016,7 @@ async def get_competitive_analysis(
     
     # Calculate brand metrics
     total_posts = len(posts)
-    total_engagement = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in posts)
+    total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in posts)
     avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
     
     # Calculate estimated reach (same as performance endpoint)
@@ -1032,55 +1026,23 @@ async def get_competitive_analysis(
     sentiment_counts = {"Positive": 0, "Negative": 0, "Neutral": 0}
     for post in posts:
         if post.sentiment:
-            # Convert SentimentType enum to string for dictionary key
-            sentiment_key = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-            sentiment_counts[sentiment_key] += 1
+            sentiment_counts[post.sentiment] += 1
     
     total_sentiment = sum(sentiment_counts.values())
     sentiment_score = 0
     if total_sentiment > 0:
         sentiment_score = (sentiment_counts["Positive"] - sentiment_counts["Negative"]) / total_sentiment
     
-    # Calculate industry benchmarks from actual data
-    # Get all posts from the same industry/category for comparison
-    all_posts = await db_service.get_all_posts(limit=10000)
-    if all_posts:
-        # Calculate industry averages from real data
-        industry_engagement_rates = []
-        industry_sentiment_scores = []
-        industry_posts_per_month = []
-        
-        for post in all_posts:
-            if post.like_count and post.comment_count and post.share_count:
-                total_engagement = post.like_count + post.comment_count + post.share_count
-                estimated_reach = total_engagement * 10  # Assuming 10x multiplier
-                engagement_rate = (total_engagement / 1) if 1 > 0 else 0  # Simplified for industry calculation
-                industry_engagement_rates.append(engagement_rate)
-            
-            if post.sentiment is not None:
-                industry_sentiment_scores.append(post.sentiment)
-        
-        # Calculate averages
-        avg_engagement_rate = sum(industry_engagement_rates) / len(industry_engagement_rates) if industry_engagement_rates else 3.5
-        avg_sentiment_score = sum(industry_sentiment_scores) / len(industry_sentiment_scores) if industry_sentiment_scores else 0.15
-        avg_posts_per_month = len(all_posts) // 12 if all_posts else 25  # Rough estimate
-        top_performers_engagement = max(industry_engagement_rates) if industry_engagement_rates else 8.2
-    else:
-        # Fallback to reasonable defaults if no data available
-        avg_engagement_rate = 3.5
-        avg_sentiment_score = 0.15
-        avg_posts_per_month = 25
-        top_performers_engagement = 8.2
-    
+    # Industry benchmarks (mock data - in real implementation, this would come from industry data)
     industry_benchmarks = {
-        "avg_engagement_rate": round(avg_engagement_rate, 2),
-        "avg_sentiment_score": round(avg_sentiment_score, 3),
-        "avg_posts_per_month": avg_posts_per_month,
-        "top_performers_engagement": round(top_performers_engagement, 2)
+        "avg_engagement_rate": 3.5,  # 3.5% average engagement rate
+        "avg_sentiment_score": 0.15,  # 15% positive sentiment advantage
+        "avg_posts_per_month": 25,   # Average posts per month
+        "top_performers_engagement": 8.2  # Top 10% performers engagement rate
     }
     
     # Calculate competitive position - use the same calculation as performance endpoint
-    brand_engagement_rate = (total_engagement / total_posts) if total_posts > 0 else 0
+    brand_engagement_rate = (total_engagement / estimated_reach * 100) if estimated_reach > 0 else 0
     
     competitive_position = "average"
     if brand_engagement_rate > industry_benchmarks["top_performers_engagement"]:
@@ -1136,107 +1098,6 @@ async def get_competitive_analysis(
 
 
 # ============= BRAND ANALYSIS ENDPOINTS =============
-
-@router.get("/brands/{brand_identifier}/summary-simple")
-async def get_brand_analysis_summary_simple(
-    brand_identifier: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    platforms: Optional[str] = None,
-    days: int = 30
-):
-    """
-    Get simplified brand analysis summary for testing
-    """
-    try:
-        # Get brand by identifier
-        brand = await get_brand_by_identifier(brand_identifier)
-        
-        # Get posts with filters
-        posts = await db_service.get_posts_by_brand(brand)
-        
-        if not posts:
-            return {
-                "brand_name": brand.name,
-                "period": f"Last {days} days",
-                "total_posts": 0,
-                "total_engagement": 0,
-                "avg_engagement_per_post": 0,
-                "sentiment_distribution": {"Positive": 0, "Negative": 0, "Neutral": 0},
-                "sentiment_percentage": {"Positive": 0, "Negative": 0, "Neutral": 0},
-                "platform_breakdown": {},
-                "trending_topics": [],
-                "brand_health_score": 0
-            }
-        
-        # Calculate key metrics - simplified approach
-        total_posts = len(posts)
-        total_engagement = 0
-        sentiment_counts = {"Positive": 0, "Negative": 0, "Neutral": 0}
-        platform_breakdown = {}
-        
-        for post in posts:
-            # Safe engagement calculation
-            try:
-                like_count = int(post.like_count) if post.like_count is not None else 0
-                comment_count = int(post.comment_count) if post.comment_count is not None else 0
-                share_count = int(post.share_count) if post.share_count is not None else 0
-                total_engagement += like_count + comment_count + share_count
-            except (ValueError, TypeError):
-                continue
-            
-            # Safe sentiment counting
-            if post.sentiment is not None:
-                try:
-                    sentiment_str = str(post.sentiment.value) if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                    if sentiment_str in sentiment_counts:
-                        sentiment_counts[sentiment_str] += 1
-                except:
-                    continue
-            
-            # Safe platform breakdown
-            try:
-                platform_name = str(post.platform.value) if hasattr(post.platform, 'value') else str(post.platform)
-                if platform_name not in platform_breakdown:
-                    platform_breakdown[platform_name] = {
-                        "posts": 0,
-                        "engagement": 0
-                    }
-                platform_breakdown[platform_name]["posts"] += 1
-                platform_breakdown[platform_name]["engagement"] += like_count + comment_count + share_count
-            except:
-                continue
-        
-        # Calculate averages
-        avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
-        
-        # Calculate engagement rate using the formula: avg_engagement_per_post / 100
-        engagement_rate = avg_engagement_per_post / 100
-        
-        # Calculate sentiment percentages
-        total_sentiment_posts = sum(sentiment_counts.values())
-        sentiment_percentage = {
-            "Positive": round((sentiment_counts["Positive"] / total_sentiment_posts * 100), 1) if total_sentiment_posts > 0 else 0,
-            "Negative": round((sentiment_counts["Negative"] / total_sentiment_posts * 100), 1) if total_sentiment_posts > 0 else 0,
-            "Neutral": round((sentiment_counts["Neutral"] / total_sentiment_posts * 100), 1) if total_sentiment_posts > 0 else 0
-        }
-        
-        return {
-            "brand_name": brand.name,
-            "period": f"Last {days} days",
-            "total_posts": total_posts,
-            "total_engagement": total_engagement,
-            "avg_engagement_per_post": round(avg_engagement_per_post, 2),
-            "engagement_rate": round(engagement_rate, 2),
-            "sentiment_distribution": sentiment_counts,
-            "sentiment_percentage": sentiment_percentage,
-            "platform_breakdown": platform_breakdown,
-            "trending_topics": [],
-            "brand_health_score": 0
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing brand: {str(e)}")
 
 @router.get("/brands/{brand_identifier}/summary")
 async def get_brand_analysis_summary(
@@ -1329,7 +1190,7 @@ async def get_brand_analysis_summary(
         
         # Calculate key metrics
         total_posts = len(posts)
-        total_engagement = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in posts)
+        total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in posts)
         avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
         
         # Sentiment analysis
@@ -1338,12 +1199,10 @@ async def get_brand_analysis_summary(
         
         for post in posts:
             if post.sentiment is not None:
-                # Convert SentimentType enum to string for counting
-                sentiment_str = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                sentiment_scores.append(sentiment_str)
-                if sentiment_str == "Positive":
+                sentiment_scores.append(post.sentiment)
+                if post.sentiment > 0.1:
                     sentiment_counts["Positive"] += 1
-                elif sentiment_str == "Negative":
+                elif post.sentiment < -0.1:
                     sentiment_counts["Negative"] += 1
                 else:
                     sentiment_counts["Neutral"] += 1
@@ -1368,11 +1227,9 @@ async def get_brand_analysis_summary(
                 }
             
             platform_breakdown[platform_name]["posts"] += 1
-            platform_breakdown[platform_name]["engagement"] += int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
+            platform_breakdown[platform_name]["engagement"] += post.like_count + post.comment_count + post.share_count
             if post.sentiment is not None:
-                # Convert SentimentType enum to numeric value for calculation
-                sentiment_value = 1 if post.sentiment.value == "Positive" else -1 if post.sentiment.value == "Negative" else 0
-                platform_breakdown[platform_name]["sentiment"] += sentiment_value
+                platform_breakdown[platform_name]["sentiment"] += post.sentiment
         
         # Calculate platform-specific metrics
         for platform_data in platform_breakdown.values():
@@ -1381,20 +1238,14 @@ async def get_brand_analysis_summary(
                 platform_data["avg_sentiment"] = round(platform_data["sentiment"] / platform_data["posts"], 3)
         
         # Get trending topics
-        topic_interests = await db_service.get_trending_topics(brand, limit=10)
+        topic_interests = await db_service.get_topic_interests_by_brand(brand, platform)
         trending_topics = []
         for topic_interest in topic_interests[:10]:  # Top 10 topics
-            # Calculate avg_sentiment from available data
-            total_mentions = topic_interest.positive_count + topic_interest.negative_count + topic_interest.neutral_count
-            avg_sentiment = 0
-            if total_mentions > 0:
-                avg_sentiment = (topic_interest.positive_count - topic_interest.negative_count) / total_mentions
-            
             trending_topics.append({
                 "topic": topic_interest.topic,
                 "mentions": topic_interest.mention_count,
-                "sentiment": round(avg_sentiment, 2),
-                "engagement": int(topic_interest.total_likes or 0) + int(topic_interest.total_comments or 0)
+                "sentiment": round(topic_interest.avg_sentiment, 2),
+                "engagement": topic_interest.total_engagement
             })
         
         return {
@@ -1434,42 +1285,6 @@ async def get_brand_sentiment_timeline(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Try to get latest brand analysis
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(1).to_list()
-        
-        # If brand analysis exists, get timeline from new collections
-        if brand_analyses:
-            analysis = brand_analyses[0]
-            timeline_data = await db_service.get_brand_sentiment_timeline(
-                str(analysis.id), start_date, end_date
-            )
-            
-            if timeline_data:
-                # Convert to frontend format
-                timeline_list = []
-                for item in timeline_data:
-                    timeline_list.append({
-                        "date": item.date.strftime("%Y-%m-%d"),
-                        "total_posts": item.total_posts,
-                        "positive": item.positive_count,
-                        "negative": item.negative_count,
-                        "neutral": item.neutral_count,
-                        "avg_sentiment": round(item.sentiment_score, 3)
-                    })
-                
-                return {
-                    "brand_name": brand.name,
-                    "platform": "all",
-                    "timeline": timeline_list,
-                    "summary": {
-                        "total_days": len(timeline_list),
-                        "avg_sentiment": round(sum(item.sentiment_score for item in timeline_data) / len(timeline_data), 3) if timeline_data else 0
-                    }
-                }
-        
-        # Fallback to old method if no brand analysis found
         # Parse platform filter
         platform = None
         if platforms:
@@ -1525,12 +1340,10 @@ async def get_brand_sentiment_timeline(
                 timeline[date_key]["total_posts"] += 1
                 
                 if post.sentiment is not None:
-                    # Convert SentimentType enum to numeric value for calculation
-                    sentiment_value = 1 if post.sentiment.value == "Positive" else -1 if post.sentiment.value == "Negative" else 0
-                    timeline[date_key]["total_sentiment"] += sentiment_value
-                    if post.sentiment.value == "Positive":
+                    timeline[date_key]["total_sentiment"] += post.sentiment
+                    if post.sentiment > 0.1:
                         timeline[date_key]["Positive"] += 1
-                    elif post.sentiment.value == "Negative":
+                    elif post.sentiment < -0.1:
                         timeline[date_key]["Negative"] += 1
                     else:
                         timeline[date_key]["Neutral"] += 1
@@ -1582,45 +1395,6 @@ async def get_brand_trending_topics(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Try to get latest brand analysis
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(1).to_list()
-        
-        # If brand analysis exists, get topics from new collections
-        if brand_analyses:
-            analysis = brand_analyses[0]
-            platform_filter = platforms.split(',')[0] if platforms else None
-            trending_topics = await db_service.get_brand_trending_topics(
-                str(analysis.id), platform_filter
-            )
-            
-            if trending_topics:
-                # Convert to frontend format
-                topics_list = []
-                for topic in trending_topics[:limit]:
-                    topics_list.append({
-                        "topic": topic.topic,
-                        "count": topic.topic_count,
-                        "sentiment": round(topic.sentiment, 2),
-                        "engagement": topic.engagement,
-                        "positive": topic.positive,
-                        "negative": topic.negative,
-                        "neutral": topic.neutral,
-                        "platform": topic.platform
-                    })
-                
-                return {
-                    "brand_name": brand.name,
-                    "platform": platform_filter or "all",
-                    "topics": topics_list,
-                    "summary": {
-                        "total_topics": len(topics_list),
-                        "avg_sentiment": round(sum(t["sentiment"] for t in topics_list) / len(topics_list), 2) if topics_list else 0
-                    }
-                }
-        
-        # Fallback to old method if no brand analysis found
         # Parse platform filter
         platform = None
         if platforms:
@@ -1631,7 +1405,7 @@ async def get_brand_trending_topics(
                 pass
         
         # Get topic interests
-        topic_interests = await db_service.get_trending_topics(brand, limit=10)
+        topic_interests = await db_service.get_topic_interests_by_brand(brand, platform)
         
         # Apply date filtering if needed
         if start_date or end_date:
@@ -1657,8 +1431,8 @@ async def get_brand_trending_topics(
                     if valid_posts:
                         # Recalculate metrics for filtered posts
                         total_mentions = len(valid_posts)
-                        total_sentiment = sum(1 if p.sentiment.value == "Positive" else -1 if p.sentiment.value == "Negative" else 0 for p in valid_posts if p.sentiment is not None)
-                        total_engagement = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in valid_posts)
+                        total_sentiment = sum(p.sentiment for p in valid_posts if p.sentiment is not None)
+                        total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in valid_posts)
                         
                         filtered_topics.append({
                             "topic": topic.topic,
@@ -1673,7 +1447,7 @@ async def get_brand_trending_topics(
                     filtered_topics.append({
                         "topic": topic.topic,
                         "count": topic.mention_count,
-                        "sentiment": round((topic.positive_count - topic.negative_count) / max(topic.positive_count + topic.negative_count + topic.neutral_count, 1), 2),
+                        "sentiment": round(topic.avg_sentiment, 2),
                         "engagement": topic.total_engagement,
                         "positive": topic.positive_count,
                         "negative": topic.negative_count,
@@ -1726,42 +1500,6 @@ async def get_brand_engagement_patterns(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Try to get latest brand analysis
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(1).to_list()
-        
-        # If brand analysis exists, get patterns from new collections
-        if brand_analyses:
-            analysis = brand_analyses[0]
-            platform_filter = platforms.split(',')[0] if platforms else None
-            engagement_patterns = await db_service.get_brand_engagement_patterns(
-                str(analysis.id), platform_filter
-            )
-            
-            if engagement_patterns:
-                # Convert to frontend format
-                patterns_list = []
-                for pattern in engagement_patterns:
-                    patterns_list.append({
-                        "time_slot": pattern.time_slot,
-                        "day_of_week": pattern.day_of_week,
-                        "avg_engagement": pattern.avg_engagement,
-                        "post_count": pattern.post_count,
-                        "platform": pattern.platform
-                    })
-                
-                return {
-                    "brand_name": brand.name,
-                    "platform": platform_filter or "all",
-                    "patterns": patterns_list,
-                    "summary": {
-                        "total_patterns": len(patterns_list),
-                        "best_time": max(patterns_list, key=lambda x: x["avg_engagement"])["time_slot"] if patterns_list else None
-                    }
-                }
-        
-        # Fallback to old method if no brand analysis found
         # Parse platform filter
         platform = None
         if platforms:
@@ -1850,42 +1588,6 @@ async def get_brand_performance_metrics(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Try to get latest brand analysis
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(1).to_list()
-        
-        # If brand analysis exists, get performance from new collections
-        if brand_analyses:
-            analysis = brand_analyses[0]
-            platform_filter = platforms.split(',')[0] if platforms else None
-            performance_data = await db_service.get_brand_performance(
-                str(analysis.id), platform_filter
-            )
-            
-            if performance_data:
-                # Convert to frontend format
-                performance_list = []
-                for perf in performance_data:
-                    performance_list.append({
-                        "metric": perf.metric,
-                        "value": perf.value,
-                        "trend": perf.trend,
-                        "platform": perf.platform,
-                        "period": perf.period
-                    })
-                
-                return {
-                    "brand_name": brand.name,
-                    "platform": platform_filter or "all",
-                    "performance": performance_list,
-                    "summary": {
-                        "total_metrics": len(performance_list),
-                        "avg_performance": round(sum(p["value"] for p in performance_list) / len(performance_list), 2) if performance_list else 0
-                    }
-                }
-        
-        # Fallback to old method if no brand analysis found
         # Parse platform filter
         platform = None
         if platforms:
@@ -1937,9 +1639,9 @@ async def get_brand_performance_metrics(
         avg_shares_per_post = total_shares / total_posts if total_posts > 0 else 0
         avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
         
-        # Engagement rate calculation: total_engagement / total_posts
+        # Engagement rate calculation
         estimated_reach = total_engagement * 10  # Assuming 10x multiplier for reach
-        engagement_rate = (total_engagement / total_posts) if total_posts > 0 else 0
+        engagement_rate = (total_engagement / estimated_reach * 100) if estimated_reach > 0 else 0
         
         # Platform breakdown
         platform_breakdown = {}
@@ -1955,7 +1657,7 @@ async def get_brand_performance_metrics(
                 }
             
             platform_breakdown[platform_name]['posts'] += 1
-            platform_breakdown[platform_name]['engagement'] += int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
+            platform_breakdown[platform_name]['engagement'] += post.like_count + post.comment_count + post.share_count
             platform_breakdown[platform_name]['likes'] += post.like_count
             platform_breakdown[platform_name]['comments'] += post.comment_count
             platform_breakdown[platform_name]['shares'] += post.share_count
@@ -2005,41 +1707,6 @@ async def get_brand_emotion_analysis(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Try to get latest brand analysis
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(1).to_list()
-        
-        # If brand analysis exists, get emotions from new collections
-        if brand_analyses:
-            analysis = brand_analyses[0]
-            platform_filter = platforms.split(',')[0] if platforms else None
-            emotions_data = await db_service.get_brand_emotions(
-                str(analysis.id), platform_filter
-            )
-            
-            if emotions_data:
-                # Convert to frontend format
-                emotions_list = []
-                for emotion in emotions_data:
-                    emotions_list.append({
-                        "emotion": emotion.emotion,
-                        "count": emotion.count,
-                        "percentage": emotion.percentage,
-                        "platform": emotion.platform
-                    })
-                
-                return {
-                    "brand_name": brand.name,
-                    "platform": platform_filter or "all",
-                    "emotions": emotions_list,
-                    "summary": {
-                        "total_emotions": len(emotions_list),
-                        "dominant_emotion": max(emotions_list, key=lambda x: x["count"])["emotion"] if emotions_list else "neutral"
-                    }
-                }
-        
-        # Fallback to old method if no brand analysis found
         # Parse platform filter
         platform = None
         if platforms:
@@ -2128,42 +1795,6 @@ async def get_brand_demographics(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Try to get latest brand analysis
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(1).to_list()
-        
-        # If brand analysis exists, get demographics from new collections
-        if brand_analyses:
-            analysis = brand_analyses[0]
-            platform_filter = platforms.split(',')[0] if platforms else None
-            demographics_data = await db_service.get_brand_demographics(
-                str(analysis.id), platform_filter
-            )
-            
-            if demographics_data:
-                # Convert to frontend format
-                demographics_list = []
-                for demo in demographics_data:
-                    demographics_list.append({
-                        "category": demo.category,
-                        "value": demo.value,
-                        "count": demo.count,
-                        "percentage": demo.percentage,
-                        "platform": demo.platform
-                    })
-                
-                return {
-                    "brand_name": brand.name,
-                    "platform": platform_filter or "all",
-                    "demographics": demographics_list,
-                    "summary": {
-                        "total_categories": len(demographics_list),
-                        "most_common": max(demographics_list, key=lambda x: x["count"])["value"] if demographics_list else "unknown"
-                    }
-                }
-        
-        # Fallback to old method if no brand analysis found
         # Parse platform filter
         platform = None
         if platforms:
@@ -2319,52 +1950,24 @@ async def get_brand_competitive_analysis(
         
         # Calculate brand metrics
         brand_total_posts = len(brand_posts)
-        brand_total_engagement = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in brand_posts)
+        brand_total_engagement = sum(p.like_count + p.comment_count + p.share_count for p in brand_posts)
         brand_avg_engagement = brand_total_engagement / brand_total_posts if brand_total_posts > 0 else 0
         
         # Calculate brand sentiment
-        brand_sentiment_scores = [1 if p.sentiment.value == "Positive" else -1 if p.sentiment.value == "Negative" else 0 for p in brand_posts if p.sentiment is not None]
+        brand_sentiment_scores = [p.sentiment for p in brand_posts if p.sentiment is not None]
         brand_avg_sentiment = sum(brand_sentiment_scores) / len(brand_sentiment_scores) if brand_sentiment_scores else 0
         
-        # Calculate industry benchmarks from actual data
-        all_posts = await db_service.get_all_posts(limit=10000)
-        if all_posts:
-            # Calculate industry averages from real data
-            industry_engagement_rates = []
-            industry_sentiment_scores = []
-            
-            for post in all_posts:
-                if post.like_count and post.comment_count and post.share_count:
-                    total_engagement = post.like_count + post.comment_count + post.share_count
-                    estimated_reach = total_engagement * 10  # Assuming 10x multiplier
-                    engagement_rate = (total_engagement / 1) if 1 > 0 else 0  # Simplified for industry calculation
-                    industry_engagement_rates.append(engagement_rate)
-                
-                if post.sentiment is not None:
-                    industry_sentiment_scores.append(post.sentiment)
-            
-            # Calculate averages
-            avg_engagement_rate = sum(industry_engagement_rates) / len(industry_engagement_rates) if industry_engagement_rates else 3.5
-            avg_sentiment_score = sum(industry_sentiment_scores) / len(industry_sentiment_scores) if industry_sentiment_scores else 0.65
-            avg_posts_per_month = len(all_posts) // 12 if all_posts else 50
-            avg_reach = sum(industry_engagement_rates) * 10 if industry_engagement_rates else 10000
-        else:
-            # Fallback to reasonable defaults if no data available
-            avg_engagement_rate = 3.5
-            avg_sentiment_score = 0.65
-            avg_posts_per_month = 50
-            avg_reach = 10000
-        
+        # Industry benchmarks (mock data - in real implementation, this would come from industry data)
         industry_benchmarks = {
-            "avg_posts_per_month": avg_posts_per_month,
-            "avg_engagement_rate": round(avg_engagement_rate, 2),
-            "avg_sentiment_score": round(avg_sentiment_score, 3),
-            "avg_reach": round(avg_reach, 0)
+            "avg_posts_per_month": 50,
+            "avg_engagement_rate": 3.5,
+            "avg_sentiment_score": 0.65,
+            "avg_reach": 10000
         }
         
         # Calculate performance vs benchmarks
         posts_per_month = brand_total_posts  # Simplified calculation
-        engagement_rate = (brand_total_engagement / brand_total_posts) if brand_total_posts > 0 else 0
+        engagement_rate = (brand_total_engagement / (brand_total_posts * 1000)) * 100 if brand_total_posts > 0 else 0
         
         performance_vs_benchmark = {
             "posts_performance": "above" if posts_per_month > industry_benchmarks["avg_posts_per_month"] else "below",
@@ -2421,10 +2024,8 @@ async def get_content_analysis_summary(
     - Content health indicators
     """
     try:
-        # Get content analysis by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis, Brand
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        # Get content by ID
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
@@ -2437,11 +2038,8 @@ async def get_content_analysis_summary(
             except:
                 pass
         
-        # For content analysis, we should NOT use brand posts for benchmark
-        # Content analysis should be independent of brand analysis
-        related_posts = []
-        # Note: Content analysis should focus on individual content performance
-        # without comparing to brand posts to avoid data contamination
+        # Get related posts for analysis (posts from same brand/platform)
+        related_posts = await db_service.get_posts_by_brand(content.brand, platform, limit=1000)
         
         # Apply date filtering
         if start_date or end_date:
@@ -2469,111 +2067,54 @@ async def get_content_analysis_summary(
             if recent_posts:
                 related_posts = recent_posts
         
-        # Calculate content-specific metrics from ContentAnalysis
-        content_engagement = content.engagement_score or 0
-        content_sentiment = content.sentiment_overall or 0
+        # Calculate content-specific metrics
+        content_engagement = content.like_count + content.comment_count + content.share_count
+        content_sentiment = content.sentiment if content.sentiment is not None else 0
         
-        # For content analysis, use industry benchmarks instead of brand posts
-        # This ensures content analysis is independent of brand analysis
-        industry_engagement_benchmark = 100  # Industry average engagement
-        industry_sentiment_benchmark = 0.1   # Industry average sentiment
+        # Calculate benchmark metrics from related posts
+        total_related_posts = len(related_posts)
+        avg_engagement_benchmark = sum(p.like_count + p.comment_count + p.share_count for p in related_posts) / total_related_posts if total_related_posts > 0 else 0
+        avg_sentiment_benchmark = sum(p.sentiment for p in related_posts if p.sentiment is not None) / len([p for p in related_posts if p.sentiment is not None]) if any(p.sentiment is not None for p in related_posts) else 0
         
-        # Performance comparison against industry benchmarks
-        engagement_performance = "above" if content_engagement > industry_engagement_benchmark else "below"
-        sentiment_performance = "above" if content_sentiment > industry_sentiment_benchmark else "below"
+        # Performance comparison
+        engagement_performance = "above" if content_engagement > avg_engagement_benchmark else "below"
+        sentiment_performance = "above" if content_sentiment > avg_sentiment_benchmark else "below"
         
         # Content health score
-        health_score = content.content_health_score or 0
-        if health_score == 0:
-            # Calculate health score if not set
-            if content_engagement > industry_engagement_benchmark:
-                health_score += 40
-            if content_sentiment > industry_sentiment_benchmark:
-                health_score += 30
-            if content.engagement_score and content.engagement_score > 0:
-                health_score += 15
-            if content.reach_estimate and content.reach_estimate > 0:
-                health_score += 15
-        
-        # Convert content analysis data to frontend-compatible format
-        # Map sentiment to distribution format
-        sentiment_distribution = {"Positive": 0, "Negative": 0, "Neutral": 0}
-        sentiment_percentage = {"Positive": 0, "Negative": 0, "Neutral": 0}
-        
-        if content_sentiment > 0.1:
-            sentiment_distribution["Positive"] = 1
-            sentiment_percentage["Positive"] = 100
-        elif content_sentiment < -0.1:
-            sentiment_distribution["Negative"] = 1
-            sentiment_percentage["Negative"] = 100
-        else:
-            sentiment_distribution["Neutral"] = 1
-            sentiment_percentage["Neutral"] = 100
-        
-        # Create trending topics from content analysis
-        trending_topics = []
-        if content.dominant_topic:
-            trending_topics.append({
-                "topic": content.dominant_topic,
-                "count": 1,
-                "sentiment": content_sentiment,
-                "engagement": content_engagement,
-                "positive": 1 if content_sentiment > 0.1 else 0,
-                "negative": 1 if content_sentiment < -0.1 else 0,
-                "neutral": 1 if -0.1 <= content_sentiment <= 0.1 else 0
-            })
-        
-        # Create platform breakdown
-        platform_breakdown = {
-            content.platform.value: {
-                "posts": 1,
-                "engagement": content_engagement,
-                "sentiment": content_sentiment
-            }
-        }
+        health_score = 0
+        if content_engagement > avg_engagement_benchmark:
+            health_score += 40
+        if content_sentiment > avg_sentiment_benchmark:
+            health_score += 30
+        if content.like_count > 0:
+            health_score += 15
+        if content.comment_count > 0:
+            health_score += 15
         
         return {
-            # Frontend-compatible format
-            "brand_name": content.title,  # Use content title as brand name for compatibility
-            "total_posts": 1,  # Single content analysis
-            "total_engagement": content_engagement,
-            "avg_engagement_per_post": content_engagement,
-            "engagement_rate": round(content_engagement / 100, 2),  # Convert to percentage
-            "sentiment_distribution": sentiment_distribution,
-            "sentiment_percentage": sentiment_percentage,
-            "platform_breakdown": platform_breakdown,
-            "trending_topics": trending_topics,
-            "brand_health_score": health_score,
-            
-            # Additional content-specific data
             "content_id": content_id,
-            "content_title": content.title,
+            "content_title": getattr(content, 'title', 'Untitled Content'),
             "platform": content.platform.value,
             "period": f"Last {days} days",
             "content_metrics": {
-                "likes": 0,  # ContentAnalysis doesn't have like_count
-                "comments": 0,  # ContentAnalysis doesn't have comment_count
-                "shares": 0,  # ContentAnalysis doesn't have share_count
+                "likes": content.like_count,
+                "comments": content.comment_count,
+                "shares": content.share_count,
                 "total_engagement": content_engagement,
                 "sentiment": round(content_sentiment, 3),
-                "engagement_rate": round(content_engagement / 1, 2),
-                "reach_estimate": content.reach_estimate or 0,
-                "virality_score": content.virality_score or 0
+                "engagement_rate": round((content_engagement / max(getattr(content, 'view_count', 1), 1)) * 100, 2)
             },
             "benchmark_comparison": {
                 "engagement_performance": engagement_performance,
                 "sentiment_performance": sentiment_performance,
-                "industry_engagement_benchmark": industry_engagement_benchmark,
-                "industry_sentiment_benchmark": industry_sentiment_benchmark,
-                "benchmark_type": "industry"
+                "avg_engagement_benchmark": round(avg_engagement_benchmark, 2),
+                "avg_sentiment_benchmark": round(avg_sentiment_benchmark, 3)
             },
             "content_health_score": health_score,
             "content_insights": {
-                "best_performing_metric": "engagement" if content.engagement_score and content.engagement_score > 0 else "reach" if content.reach_estimate and content.reach_estimate > 0 else "virality",
-                "engagement_trend": "positive" if content_engagement > industry_engagement_benchmark else "negative",
-                "sentiment_category": "positive" if content_sentiment > 0.1 else "negative" if content_sentiment < -0.1 else "neutral",
-                "dominant_topic": content.dominant_topic or "general",
-                "dominant_emotion": content.dominant_emotion or "neutral"
+                "best_performing_metric": "likes" if content.like_count >= max(content.comment_count, content.share_count) else "comments" if content.comment_count >= content.share_count else "shares",
+                "engagement_trend": "positive" if content_engagement > avg_engagement_benchmark else "negative",
+                "sentiment_category": "positive" if content_sentiment > 0.1 else "negative" if content_sentiment < -0.1 else "neutral"
             }
         }
         
@@ -2596,18 +2137,16 @@ async def get_content_sentiment_timeline(
     showing how audience perception changes.
     """
     try:
-        # Get content analysis by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        # Get content by ID
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
-        # For individual content, we'll analyze sentiment over time based on content analysis data
+        # For individual content, we'll analyze sentiment over time based on comments/engagement
         # This is a simplified implementation - in real scenario, you'd track sentiment changes
         
         # Get content creation date
-        content_date = content.created_at
+        content_date = content.posted_at or content.created_at
         
         # Create timeline data (simplified - in real implementation, track actual sentiment changes)
         timeline_data = []
@@ -2618,14 +2157,14 @@ async def get_content_sentiment_timeline(
             date_key = date.strftime("%Y-%m-%d")
             
             # Simulate sentiment variation over time
-            base_sentiment = content.sentiment_overall or 0
+            base_sentiment = content.sentiment if content.sentiment is not None else 0
             variation = (i % 3 - 1) * 0.1  # Simple variation pattern
             daily_sentiment = base_sentiment + variation
             
             timeline_data.append({
                 "date": date_key,
                 "sentiment": round(daily_sentiment, 3),
-                "engagement": content.engagement_score or 0,
+                "engagement": content.like_count + content.comment_count + content.share_count,
                 "mentions": 1 if i == 0 else 0  # Content was mentioned on creation day
             })
         
@@ -2663,18 +2202,15 @@ async def get_content_trending_topics(
     """
     try:
         # Get content by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
         # Get related topics from content analysis
-        content_topic = content.dominant_topic if content.dominant_topic else "general"
+        content_topic = content.topic if content.topic else "general"
         
-        # For content analysis, we don't need related posts from brand
-        # Content analysis should be independent
-        related_posts = []
+        # Get related posts for topic analysis
+        related_posts = await db_service.get_posts_by_brand(content.brand, content.platform, limit=1000)
         
         # Apply date filtering
         if start_date or end_date:
@@ -2696,38 +2232,48 @@ async def get_content_trending_topics(
             except:
                 pass
         
-        # For content analysis, use content's own topic data
+        # Analyze topics from related posts
+        topic_analysis = {}
+        for post in related_posts:
+            if post.topic:
+                topic = post.topic.lower()
+                if topic not in topic_analysis:
+                    topic_analysis[topic] = {
+                        "count": 0,
+                        "sentiment": 0,
+                        "engagement": 0,
+                        "positive": 0,
+                        "negative": 0,
+                        "neutral": 0
+                    }
+                
+                topic_analysis[topic]["count"] += 1
+                if post.sentiment is not None:
+                    topic_analysis[topic]["sentiment"] += post.sentiment
+                    if post.sentiment > 0.1:
+                        topic_analysis[topic]["positive"] += 1
+                    elif post.sentiment < -0.1:
+                        topic_analysis[topic]["negative"] += 1
+                    else:
+                        topic_analysis[topic]["neutral"] += 1
+                
+                topic_analysis[topic]["engagement"] += post.like_count + post.comment_count + post.share_count
+        
+        # Convert to trending topics format
         trending_topics = []
+        for topic, data in topic_analysis.items():
+            trending_topics.append({
+                "topic": topic,
+                "count": data["count"],
+                "sentiment": round(data["sentiment"] / data["count"], 2) if data["count"] > 0 else 0,
+                "engagement": data["engagement"],
+                "positive": data["positive"],
+                "negative": data["negative"],
+                "neutral": data["neutral"]
+            })
         
-        # Get topics from content analysis
-        if content.topics and len(content.topics) > 0:
-            for topic_data in content.topics:
-                if isinstance(topic_data, dict) and "topic" in topic_data:
-                    trending_topics.append({
-                        "topic": topic_data["topic"],
-                        "count": 1,
-                        "sentiment": topic_data.get("sentiment", 0),
-                        "engagement": content.engagement_score or 0,
-                        "positive": 1 if topic_data.get("sentiment", 0) > 0 else 0,
-                        "negative": 1 if topic_data.get("sentiment", 0) < 0 else 0,
-                        "neutral": 1 if topic_data.get("sentiment", 0) == 0 else 0
-                    })
-        else:
-            # Fallback to content's dominant topic
-            if content.dominant_topic:
-                trending_topics.append({
-                    "topic": content.dominant_topic,
-                    "count": 1,
-                    "sentiment": content.sentiment_overall or 0,
-                    "engagement": content.engagement_score or 0,
-                    "positive": 1 if (content.sentiment_overall or 0) > 0 else 0,
-                    "negative": 1 if (content.sentiment_overall or 0) < 0 else 0,
-                    "neutral": 1 if (content.sentiment_overall or 0) == 0 else 0
-                })
-        
-        # Sort by engagement and limit
-        trending_topics.sort(key=lambda x: x["engagement"], reverse=True)
-        trending_topics = trending_topics[:limit]
+        # Sort by count and limit
+        trending_topics = sorted(trending_topics, key=lambda x: x["count"], reverse=True)[:limit]
         
         return {
             "content_id": content_id,
@@ -2756,14 +2302,12 @@ async def get_content_engagement_patterns(
     """
     try:
         # Get content by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
         # Get content creation time
-        content_time = content.created_at
+        content_time = content.posted_at or content.created_at
         
         # Analyze engagement patterns based on content timing
         hour = content_time.hour if content_time else 12
@@ -2773,9 +2317,9 @@ async def get_content_engagement_patterns(
         peak_hours = [f"{hour:02d}:00", f"{(hour + 1) % 24:02d}:00", f"{(hour + 2) % 24:02d}:00"]
         active_days = [day_of_week, "Tuesday", "Wednesday"]  # Simplified pattern
         
-        # Calculate engagement rate: total_engagement / total_posts (for content, we use 1 as total_posts)
-        total_engagement = content.engagement_score or 0
-        engagement_rate = total_engagement / 1 if 1 > 0 else 0
+        # Calculate engagement rate
+        view_count = getattr(content, 'view_count', 1) or 1
+        engagement_rate = ((content.like_count + content.comment_count + content.share_count) / view_count) * 100
         
         return {
             "content_id": content_id,
@@ -2811,41 +2355,39 @@ async def get_content_performance_metrics(
     """
     try:
         # Get content by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
         # Calculate content performance metrics
-        total_engagement = content.engagement_score or 0
-        view_count = content.reach_estimate or 1000
+        total_engagement = content.like_count + content.comment_count + content.share_count
+        view_count = getattr(content, 'view_count', 1) or 1
         
-        # Calculate engagement rate: total_engagement / total_posts (for content, we use 1 as total_posts)
-        engagement_rate = total_engagement / 1 if 1 > 0 else 0
+        # Calculate engagement rate
+        engagement_rate = (total_engagement / view_count) * 100 if view_count > 0 else 0
         
         # Calculate reach (estimated)
-        estimated_reach = content.reach_estimate or 1000
+        estimated_reach = view_count * 0.8  # Assume 80% of views are unique reach
         
         # Calculate conversion metrics (simplified)
-        conversion_rate = (content.virality_score or 0) * 100 if view_count > 0 else 0
+        conversion_rate = (content.share_count / view_count) * 100 if view_count > 0 else 0
         
-        # Performance breakdown by metric (simplified for content analysis)
+        # Performance breakdown by metric
         performance_breakdown = {
-            "engagement": {
-                "score": content.engagement_score or 0,
-                "rate": round((content.engagement_score or 0) / view_count * 100, 2) if view_count > 0 else 0,
-                "impact": "high" if (content.engagement_score or 0) > view_count * 0.05 else "medium" if (content.engagement_score or 0) > view_count * 0.02 else "low"
+            "likes": {
+                "count": content.like_count,
+                "rate": round((content.like_count / view_count) * 100, 2) if view_count > 0 else 0,
+                "impact": "high" if content.like_count > view_count * 0.05 else "medium" if content.like_count > view_count * 0.02 else "low"
             },
-            "reach": {
-                "estimate": content.reach_estimate or 0,
-                "rate": round((content.reach_estimate or 0) / view_count * 100, 2) if view_count > 0 else 0,
-                "impact": "high" if (content.reach_estimate or 0) > view_count * 0.8 else "medium" if (content.reach_estimate or 0) > view_count * 0.5 else "low"
+            "comments": {
+                "count": content.comment_count,
+                "rate": round((content.comment_count / view_count) * 100, 2) if view_count > 0 else 0,
+                "impact": "high" if content.comment_count > view_count * 0.01 else "medium" if content.comment_count > view_count * 0.005 else "low"
             },
-            "virality": {
-                "score": content.virality_score or 0,
-                "rate": round((content.virality_score or 0) * 100, 2),
-                "impact": "high" if (content.virality_score or 0) > 0.1 else "medium" if (content.virality_score or 0) > 0.05 else "low"
+            "shares": {
+                "count": content.share_count,
+                "rate": round((content.share_count / view_count) * 100, 2) if view_count > 0 else 0,
+                "impact": "high" if content.share_count > view_count * 0.01 else "medium" if content.share_count > view_count * 0.005 else "low"
             }
         }
         
@@ -2855,9 +2397,9 @@ async def get_content_performance_metrics(
             "period": f"Last {days} days",
             "performance_metrics": {
                 "views": view_count,
-                "likes": 0,  # ContentAnalysis doesn't have like_count
-                "comments": 0,  # ContentAnalysis doesn't have comment_count
-                "shares": 0,  # ContentAnalysis doesn't have share_count
+                "likes": content.like_count,
+                "comments": content.comment_count,
+                "shares": content.share_count,
                 "total_engagement": total_engagement,
                 "engagement_rate": round(engagement_rate, 2),
                 "estimated_reach": round(estimated_reach, 0),
@@ -2865,9 +2407,9 @@ async def get_content_performance_metrics(
             },
             "performance_breakdown": performance_breakdown,
             "content_insights": {
-                "best_performing_metric": "engagement",  # Simplified for content analysis
+                "best_performing_metric": max(performance_breakdown.keys(), key=lambda k: performance_breakdown[k]["count"]),
                 "engagement_quality": "high" if engagement_rate > 5 else "medium" if engagement_rate > 2 else "low",
-                "viral_potential": "high" if (content.virality_score or 0) > 0.1 else "medium" if (content.virality_score or 0) > 0.05 else "low"
+                "viral_potential": "high" if content.share_count > view_count * 0.02 else "medium" if content.share_count > view_count * 0.01 else "low"
             }
         }
         
@@ -2890,15 +2432,13 @@ async def get_content_emotion_analysis(
     """
     try:
         # Get content by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
         # Analyze content emotion
-        content_emotion = content.dominant_emotion if content.dominant_emotion else "neutral"
-        content_sentiment = content.sentiment_overall or 0
+        content_emotion = content.emotion if content.emotion else "neutral"
+        content_sentiment = content.sentiment if content.sentiment is not None else 0
         
         # Generate emotion insights based on content performance
         emotion_insights = {
@@ -2908,73 +2448,12 @@ async def get_content_emotion_analysis(
         }
         
         # Calculate emotion-based engagement
-        total_engagement = content.engagement_score or 0
+        total_engagement = content.like_count + content.comment_count + content.share_count
         emotion_engagement = {
             content_emotion: total_engagement
         }
         
-        # Create emotions array for frontend compatibility
-        emotions = []
-        
-        # Get emotion values from ContentAnalysis
-        joy = content.emotion_joy or 0
-        anger = content.emotion_anger or 0
-        fear = content.emotion_fear or 0
-        sadness = content.emotion_sadness or 0
-        surprise = content.emotion_surprise or 0
-        trust = content.emotion_trust or 0
-        anticipation = content.emotion_anticipation or 0
-        disgust = content.emotion_disgust or 0
-        
-        # If no emotion data, create based on dominant emotion
-        if not any([joy, anger, fear, sadness, surprise, trust, anticipation, disgust]):
-            if content_emotion == "joy":
-                joy = 0.8
-            elif content_emotion == "anger":
-                anger = 0.8
-            elif content_emotion == "fear":
-                fear = 0.8
-            elif content_emotion == "sadness":
-                sadness = 0.8
-            elif content_emotion == "surprise":
-                surprise = 0.8
-            elif content_emotion == "trust":
-                trust = 0.8
-            elif content_emotion == "anticipation":
-                anticipation = 0.8
-            elif content_emotion == "disgust":
-                disgust = 0.8
-            else:
-                # Default to neutral
-                joy = 0.2
-                trust = 0.2
-                anticipation = 0.2
-        
-        # Create emotions array with percentages
-        emotions = [
-            {"emotion": "joy", "percentage": round(joy * 100, 1)},
-            {"emotion": "anger", "percentage": round(anger * 100, 1)},
-            {"emotion": "fear", "percentage": round(fear * 100, 1)},
-            {"emotion": "sadness", "percentage": round(sadness * 100, 1)},
-            {"emotion": "surprise", "percentage": round(surprise * 100, 1)},
-            {"emotion": "trust", "percentage": round(trust * 100, 1)},
-            {"emotion": "anticipation", "percentage": round(anticipation * 100, 1)},
-            {"emotion": "disgust", "percentage": round(disgust * 100, 1)},
-            {"emotion": "neutral", "percentage": round((1 - max(joy, anger, fear, sadness, surprise, trust, anticipation, disgust)) * 100, 1)}
-        ]
-        
         return {
-            # Frontend-compatible format
-            "emotions": emotions,
-            "total_analyzed": 1,  # Single content
-            "dominant_emotion": content_emotion,
-            "emotion_summary": {
-                "primary_emotion": content_emotion,
-                "confidence": emotion_insights["emotion_confidence"],
-                "impact": emotion_insights["emotional_impact"]
-            },
-            
-            # Additional content-specific data
             "content_id": content_id,
             "platform": content.platform.value,
             "emotion_analysis": {
@@ -3010,9 +2489,7 @@ async def get_content_demographics(
     """
     try:
         # Get content by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
@@ -3050,7 +2527,7 @@ async def get_content_demographics(
                 "primary_gender": content_gender,
                 "primary_location": content_location,
                 "audience_diversity": "low",  # Single content has low diversity
-                "targeting_effectiveness": "high" if (content.engagement_score or 0) > 100 else "medium" if (content.engagement_score or 0) > 50 else "low"
+                "targeting_effectiveness": "high" if content.like_count > 10 else "medium" if content.like_count > 5 else "low"
             }
         }
         
@@ -3073,9 +2550,7 @@ async def get_content_competitive_analysis(
     """
     try:
         # Get content by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
@@ -3083,13 +2558,13 @@ async def get_content_competitive_analysis(
         related_content = await db_service.get_posts_by_brand(content.brand, content.platform, limit=100)
         
         # Calculate content metrics
-        content_engagement = int(content.like_count or 0) + int(content.comment_count or 0) + int(content.share_count or 0)
-        content_sentiment = 1 if content.sentiment and content.sentiment.value == "Positive" else -1 if content.sentiment and content.sentiment.value == "Negative" else 0
+        content_engagement = content.like_count + content.comment_count + content.share_count
+        content_sentiment = content.sentiment if content.sentiment is not None else 0
         
         # Calculate benchmark metrics from related content
         if related_content:
-            avg_engagement_benchmark = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in related_content) / len(related_content)
-            avg_sentiment_benchmark = sum(1 if p.sentiment.value == "Positive" else -1 if p.sentiment.value == "Negative" else 0 for p in related_content if p.sentiment is not None) / len([p for p in related_content if p.sentiment is not None]) if any(p.sentiment is not None for p in related_content) else 0
+            avg_engagement_benchmark = sum(p.like_count + p.comment_count + p.share_count for p in related_content) / len(related_content)
+            avg_sentiment_benchmark = sum(p.sentiment for p in related_content if p.sentiment is not None) / len([p for p in related_content if p.sentiment is not None]) if any(p.sentiment is not None for p in related_content) else 0
         else:
             avg_engagement_benchmark = 0
             avg_sentiment_benchmark = 0
@@ -3130,237 +2605,6 @@ async def get_content_competitive_analysis(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing content competitive position: {str(e)}")
 
-
-# ============= DEBUG ENDPOINTS =============
-
-@router.get("/brands/{brand_identifier}/debug")
-async def debug_brand_data(
-    brand_identifier: str
-):
-    """
-    Debug endpoint to check what data exists for a brand
-    """
-    try:
-        # Get brand by identifier
-        brand = await get_brand_by_identifier(brand_identifier)
-        if not brand:
-            raise HTTPException(status_code=404, detail="Brand not found")
-        
-        # Check posts in database
-        posts = await db_service.get_posts_by_brand(brand, limit=1000)
-        
-        # Check brand analyses
-        brand_analyses = await BrandAnalysis.find(
-            BrandAnalysis.brand_id == str(brand.id)
-        ).sort("-created_at").limit(5).to_list()
-        
-        # Check brand metrics
-        brand_metrics = []
-        if brand_analyses:
-            for analysis in brand_analyses:
-                metrics = await db_service.get_brand_metrics(str(analysis.id))
-                if metrics:
-                    brand_metrics.append(metrics)
-        
-        return {
-            "brand": {
-                "id": str(brand.id),
-                "name": brand.name,
-                "platforms": [p.value for p in brand.platforms],
-                "keywords": brand.keywords
-            },
-            "posts_count": len(posts),
-            "posts_sample": [
-                {
-                    "id": str(p.id),
-                    "platform": p.platform.value,
-                    "text": p.text[:100] + "..." if len(p.text) > 100 else p.text,
-                    "sentiment": p.sentiment.value if p.sentiment else None,
-                    "topic": p.topic,
-                    "like_count": p.like_count,
-                    "comment_count": p.comment_count,
-                    "share_count": p.share_count,
-                    "posted_at": p.posted_at
-                } for p in posts[:5]
-            ],
-            "brand_analyses_count": len(brand_analyses),
-            "brand_analyses": [
-                {
-                    "id": str(a.id),
-                    "analysis_name": a.analysis_name,
-                    "status": a.status,
-                    "platforms": a.platforms,
-                    "keywords": a.keywords,
-                    "created_at": a.created_at
-                } for a in brand_analyses
-            ],
-            "brand_metrics_count": len(brand_metrics),
-            "brand_metrics": [
-                {
-                    "id": str(m.id),
-                    "total_posts": m.total_posts,
-                    "total_engagement": m.total_engagement,
-                    "sentiment_distribution": m.sentiment_distribution
-                } for m in brand_metrics
-            ]
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error debugging brand data: {str(e)}")
-
-@router.post("/brands/{brand_identifier}/process-real-data")
-async def process_real_data(
-    brand_identifier: str
-):
-    """
-    Process real scraped data from files into database
-    """
-    try:
-        # Get brand by identifier
-        brand = await get_brand_by_identifier(brand_identifier)
-        if not brand:
-            raise HTTPException(status_code=404, detail="Brand not found")
-        
-        import os
-        import json
-        import pandas as pd
-        from pathlib import Path
-        
-        # Check for existing scraped data files
-        data_dir = "data/scraped_data"
-        processed_count = 0
-        platforms_processed = []
-        
-        # Process each platform's scraped data
-        # If brand has no platforms configured, check all available platforms
-        platforms_to_check = brand.platforms if brand.platforms else [PlatformType.INSTAGRAM, PlatformType.TWITTER, PlatformType.TIKTOK]
-        
-        for platform in platforms_to_check:
-            platform_name = platform.value
-            json_file = f"dataset_{platform_name}-scraper_{brand.name}.json"
-            file_path = os.path.join(data_dir, json_file)
-            
-            if os.path.exists(file_path):
-                print(f"📁 Processing {platform_name} data from {file_path}")
-                
-                # Load JSON data
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    scraped_data = json.load(f)
-                
-                if scraped_data:
-                    # Convert to DataFrame
-                    df = pd.DataFrame(scraped_data)
-                    
-                    # Process through analysis service
-                    from app.services.analysis_service_v2 import analysis_service_v2
-                    
-                    # Process the data
-                    result = await analysis_service_v2.process_platform_dataframe(
-                        df=df,
-                        platform=platform_name,
-                        brand_name=brand.name,
-                        keywords=brand.keywords,
-                        layer=1,
-                        save_to_db=True
-                    )
-                    
-                    processed_count += result.total_analyzed
-                    platforms_processed.append(platform_name)
-                    print(f"✅ Processed {result.total_analyzed} {platform_name} posts")
-                else:
-                    print(f"⚠️  No data in {file_path}")
-            else:
-                print(f"⚠️  File not found: {file_path}")
-        
-        if processed_count == 0:
-            return {
-                "message": f"No scraped data found for brand {brand.name}",
-                "brand_id": str(brand.id),
-                "platforms_checked": [p.value for p in brand.platforms],
-                "files_checked": [f"dataset_{p.value}-scraper_{brand.name}.json" for p in brand.platforms]
-            }
-        
-        # Create or update brand metrics
-        from app.models.database import BrandMetrics
-        brand_analysis = await BrandAnalysis.find_one(
-            BrandAnalysis.brand_id == str(brand.id)
-        )
-        
-        if brand_analysis:
-            # Get posts from database to calculate real metrics
-            posts = await db_service.get_posts_by_brand(brand, limit=10000)
-            
-            if posts:
-                total_posts = len(posts)
-                total_engagement = sum(int(p.like_count or 0) + int(p.comment_count or 0) + int(p.share_count or 0) for p in posts)
-                
-                # Calculate real sentiment distribution
-                sentiment_counts = {"Positive": 0, "Negative": 0, "Neutral": 0}
-                for post in posts:
-                    if post.sentiment:
-                        sentiment_counts[post.sentiment.value] += 1
-                
-                # Calculate platform breakdown
-                platform_breakdown = {}
-                for post in posts:
-                    platform_name = post.platform.value
-                    if platform_name not in platform_breakdown:
-                        platform_breakdown[platform_name] = {"posts": 0, "engagement": 0}
-                    platform_breakdown[platform_name]["posts"] += 1
-                    platform_breakdown[platform_name]["engagement"] += int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
-                
-                # Create or update brand metrics
-                existing_metrics = await BrandMetrics.find_one(
-                    BrandMetrics.brand_analysis_id == str(brand_analysis.id)
-                )
-                
-                if existing_metrics:
-                    # Update existing metrics
-                    existing_metrics.total_posts = total_posts
-                    existing_metrics.total_engagement = total_engagement
-                    existing_metrics.avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
-                    existing_metrics.sentiment_distribution = sentiment_counts
-                    existing_metrics.sentiment_percentage = {
-                        "Positive": round((sentiment_counts["Positive"] / total_posts * 100), 1) if total_posts > 0 else 0,
-                        "Negative": round((sentiment_counts["Negative"] / total_posts * 100), 1) if total_posts > 0 else 0,
-                        "Neutral": round((sentiment_counts["Neutral"] / total_posts * 100), 1) if total_posts > 0 else 0
-                    }
-                    existing_metrics.platform_breakdown = platform_breakdown
-                    await existing_metrics.save()
-                else:
-                    # Create new metrics
-                    metrics = BrandMetrics(
-                        brand_analysis_id=str(brand_analysis.id),
-                        brand_id=str(brand.id),
-                        total_posts=total_posts,
-                        total_engagement=total_engagement,
-                        avg_engagement_per_post=total_engagement / total_posts if total_posts > 0 else 0,
-                        engagement_rate=0.05,  # Default 5%
-                        sentiment_distribution=sentiment_counts,
-                        sentiment_percentage={
-                            "Positive": round((sentiment_counts["Positive"] / total_posts * 100), 1) if total_posts > 0 else 0,
-                            "Negative": round((sentiment_counts["Negative"] / total_posts * 100), 1) if total_posts > 0 else 0,
-                            "Neutral": round((sentiment_counts["Neutral"] / total_posts * 100), 1) if total_posts > 0 else 0
-                        },
-                        overall_sentiment_score=0.2,  # Default slightly positive
-                        platform_breakdown=platform_breakdown,
-                        trending_topics=[],
-                        demographics={},
-                        engagement_patterns={},
-                        performance_metrics={}
-                    )
-                    await metrics.insert()
-        
-        return {
-            "message": f"Processed real scraped data for brand {brand.name}",
-            "brand_id": str(brand.id),
-            "posts_processed": processed_count,
-            "platforms_processed": platforms_processed,
-            "data_sources": [f"dataset_{p}-scraper_{brand.name}.json" for p in platforms_processed]
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing real data: {str(e)}")
 
 # ============= TRIGGER ANALYSIS ENDPOINTS =============
 
@@ -3480,7 +2724,7 @@ async def trigger_brand_analysis(
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
-        # Validate platforms - use brand platforms if none provided
+        # Validate platforms
         valid_platforms = []
         if platforms:
             for platform in platforms:
@@ -3488,9 +2732,6 @@ async def trigger_brand_analysis(
                     valid_platforms.append(PlatformType(platform.lower()))
                 except:
                     continue
-        else:
-            # Use brand's configured platforms
-            valid_platforms = brand.platforms or []
         
         # Use brand keywords if none provided
         if not keywords:
@@ -3509,7 +2750,7 @@ async def trigger_brand_analysis(
             analysis_name=analysis_name,
             analysis_type="comprehensive",
             keywords=keywords,
-            platforms=[p.value for p in valid_platforms] if valid_platforms else [],
+            platforms=[p.value for p in valid_platforms] if valid_platforms else ["tiktok", "instagram", "twitter", "youtube"],
             date_range=date_range
         )
         
@@ -3555,33 +2796,27 @@ async def trigger_content_analysis(
     sentiment analysis, engagement patterns, and audience insights.
     """
     try:
-        # Get content analysis by ID
-        from beanie import PydanticObjectId
-        from app.models.database import ContentAnalysis
-        content = await ContentAnalysis.get(PydanticObjectId(content_id))
+        # Get content by ID
+        content = await db_service.get_post_by_id(content_id)
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
         # Create analysis job
         analysis_job = AnalysisJob(
-            job_id=f"content_analysis_{content_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            brand_id=None,  # ContentAnalysis doesn't have brand relationship
-            brand=None,  # No brand for content analysis
+            brand_id=content.brand.id if content.brand else None,
             content_id=content_id,
             analysis_type="content_analysis",
             status=AnalysisStatusType.PENDING,
-            platforms=[content.platform.value],  # Required field
             parameters={
                 "analysis_type": analysis_type,
                 "parameters": parameters or {},
                 "platform": content.platform.value,
-                "content_url": content.post_url
+                "content_url": content.url
             }
         )
         
         # Save analysis job
-        await analysis_job.insert()
-        job_id = str(analysis_job.id)
+        job_id = await db_service.create_analysis_job(analysis_job)
         
         # Start background analysis
         import asyncio
@@ -3603,235 +2838,6 @@ async def trigger_content_analysis(
 
 # ============= BACKGROUND ANALYSIS FUNCTIONS =============
 
-# Simple sentiment analysis function (from manual_store_simple.py)
-def simple_sentiment_analysis(caption, hashtags):
-    """Simple rule-based sentiment analysis"""
-    positive_words = ['love', 'amazing', 'beautiful', 'best', 'great', 'perfect', 'excellent', 'wonderful']
-    negative_words = ['bad', 'worst', 'terrible', 'awful', 'hate', 'poor', 'disappointing']
-    
-    text = (caption + ' ' + ' '.join(hashtags)).lower()
-    
-    positive_count = sum(1 for word in positive_words if word in text)
-    negative_count = sum(1 for word in negative_words if word in text)
-    
-    if positive_count > negative_count:
-        return "Positive", 0.6
-    elif negative_count > positive_count:
-        return "Negative", -0.6
-    else:
-        return "Neutral", 0.0
-
-async def load_brand_specific_data(brand_name: str, platform: str, keywords: List[str]):
-    """
-    Load brand-specific data only - NO FALLBACK to other brands
-    """
-    try:
-        import pandas as pd
-        import json
-        import os
-        from datetime import datetime
-        
-        print(f"🔄 Loading brand-specific data for {brand_name} on {platform}")
-        
-        # Map platform to file path based on brand name
-        base_path = '/Users/ilhamabdullah/Documents/teorema/socialint-api/data/scraped_data'
-        brand_lower = brand_name.lower()
-        
-        file_paths = {
-            'instagram': f'{base_path}/dataset_instagram-scraper_{brand_lower}.json',
-            'tiktok': f'{base_path}/dataset_tiktok-scraper_{brand_lower}.json',
-            'twitter': f'{base_path}/dataset_twitter-scraper_{brand_lower}.json',
-            'youtube': f'{base_path}/dataset_youtube-scraper_{brand_lower}.json'
-        }
-        
-        file_path = file_paths.get(platform.lower())
-        
-        # Check if brand-specific file exists
-        if not file_path or not os.path.exists(file_path):
-            print(f"⚠️ No brand-specific data file found for {brand_name} on {platform}: {file_path}")
-            return pd.DataFrame()
-        
-        print(f"📁 Using brand-specific data file: {file_path}")
-        
-        # Load data from JSON file
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        if not data:
-            print(f"⚠️ Empty data file: {file_path}")
-            return pd.DataFrame()
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(data)
-        
-        if df.empty:
-            print(f"⚠️ Empty DataFrame from file: {file_path}")
-            return pd.DataFrame()
-        
-        # Limit to reasonable number of posts
-        max_posts = 100
-        if len(df) > max_posts:
-            df = df.head(max_posts)
-            print(f"📊 Limited to {max_posts} posts from {len(data)} total posts")
-        
-        print(f"✅ Loaded {len(df)} posts from brand-specific data for {platform}")
-        return df
-        
-    except Exception as e:
-        print(f"❌ Error loading brand-specific data: {str(e)}")
-        return pd.DataFrame()
-
-async def load_fallback_data(brand_name: str, platform: str, keywords: List[str]):
-    """
-    Load fallback data from JSON files when scraping fails
-    Similar to manual_store_simple.py approach
-    """
-    try:
-        import pandas as pd
-        import json
-        import os
-        from datetime import datetime
-        
-        print(f"🔄 Loading fallback data for {brand_name} on {platform}")
-        
-        # Map platform to file path based on brand name
-        base_path = '/Users/ilhamabdullah/Documents/teorema/socialint-api/data/scraped_data'
-        
-        # Try to find brand-specific data first, fallback to generic data
-        brand_lower = brand_name.lower()
-        
-        file_paths = {
-            'instagram': f'{base_path}/dataset_instagram-scraper_{brand_lower}.json',
-            'tiktok': f'{base_path}/dataset_tiktok-scraper_{brand_lower}.json',
-            'twitter': f'{base_path}/dataset_twitter-scraper_{brand_lower}.json',
-            'youtube': f'{base_path}/dataset_youtube-scraper_{brand_lower}.json'
-        }
-        
-        # Fallback to available data if brand-specific data not found
-        fallback_paths = {
-            'instagram': f'{base_path}/dataset_instagram-scraper_hyundai.json',
-            'tiktok': '/Users/ilhamabdullah/Documents/teorema/socialint-api/dataset_tiktok-scraper_jokowi.json',
-            'twitter': f'{base_path}/dataset_twitter-scraper_bahlil.json',
-            'youtube': f'{base_path}/dataset_youtube-scraper_hyundai.json'
-        }
-        
-        file_path = file_paths.get(platform.lower())
-        
-        # Try brand-specific file first, then fallback
-        if not file_path or not os.path.exists(file_path):
-            file_path = fallback_paths.get(platform.lower())
-            if not file_path or not os.path.exists(file_path):
-                print(f"⚠️ No fallback data file found for platform: {platform}")
-                return pd.DataFrame()
-            else:
-                print(f"📁 Using fallback data file: {file_path}")
-        else:
-            print(f"📁 Using brand-specific data file: {file_path}")
-        
-        # Load data from JSON file
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        if not data:
-            print(f"⚠️ Empty data file: {file_path}")
-            return pd.DataFrame()
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(data)
-        
-        if df.empty:
-            print(f"⚠️ Empty DataFrame from file: {file_path}")
-            return pd.DataFrame()
-        
-        # Limit to reasonable number of posts
-        max_posts = 100
-        if len(df) > max_posts:
-            df = df.head(max_posts)
-            print(f"📊 Limited to {max_posts} posts from {len(data)} total posts")
-        
-        print(f"✅ Loaded {len(df)} posts from fallback data for {platform}")
-        return df
-        
-    except Exception as e:
-        print(f"❌ Error loading fallback data: {str(e)}")
-        return pd.DataFrame()
-
-async def process_platform_data_manual(df, platform: str, brand, keywords: List[str]):
-    """
-    Process platform data using manual store approach
-    Similar to manual_store_simple.py
-    """
-    try:
-        import pandas as pd
-        from datetime import datetime
-        from app.models.database import Post, SentimentType, PlatformType
-        
-        print(f"🔄 Processing {len(df)} posts for {platform}")
-        
-        posts_stored = 0
-        for idx, item in df.iterrows():
-            try:
-                # Parse sentiment using rule-based approach (same as manual_store_simple.py)
-                caption = item.get('caption', '')
-                hashtags = item.get('hashtags', [])
-                
-                # Simple analysis
-                sentiment_str, sentiment_score = simple_sentiment_analysis(caption, hashtags)
-                
-                # Convert to enum
-                if sentiment_str == "Positive":
-                    sentiment_enum = SentimentType.POSITIVE
-                elif sentiment_str == "Negative":
-                    sentiment_enum = SentimentType.NEGATIVE
-                else:
-                    sentiment_enum = SentimentType.NEUTRAL
-                
-                # Parse timestamp
-                timestamp = None
-                if pd.notna(item.get('timestamp')):
-                    try:
-                        timestamp = pd.to_datetime(item['timestamp'])
-                    except:
-                        timestamp = datetime.now()
-                else:
-                    timestamp = datetime.now()
-                
-                # Create post
-                post = Post(
-                    brand=brand,
-                    platform=PlatformType(platform.lower()),
-                    platform_post_id=str(item.get('id', f"{platform}_{idx}")),
-                    text=str(item.get('caption', '')),
-                    author_name=str(item.get('ownerFullName', 'unknown')),
-                    like_count=int(item.get('likesCount', 0)) if pd.notna(item.get('likesCount')) else 0,
-                    comment_count=int(item.get('commentsCount', 0)) if pd.notna(item.get('commentsCount')) else 0,
-                    share_count=int(item.get('sharesCount', 0)) if pd.notna(item.get('sharesCount')) else 0,
-                    post_url=str(item.get('url', '')),
-                    posted_at=timestamp,
-                    scraped_at=datetime.now(),
-                    sentiment=sentiment_enum,
-                    topic="General",  # Default topic
-                    emotion="Neutral",  # Default emotion
-                    author_age_group="Unknown",
-                    author_gender="Unknown",
-                    author_location_hint="Unknown"
-                )
-                
-                await post.save()
-                posts_stored += 1
-                
-                if posts_stored % 50 == 0:
-                    print(f"   ✓ Stored {posts_stored} posts...")
-                    
-            except Exception as e:
-                print(f"   ⚠️ Error at post {idx}: {str(e)}")
-                continue
-        
-        print(f"✅ Stored {posts_stored} posts for {platform}")
-        
-    except Exception as e:
-        print(f"❌ Error processing platform data: {str(e)}")
-
 async def run_brand_analysis_background(analysis_id: str, brand, keywords: List[str], platforms: List[PlatformType], start_date: Optional[str], end_date: Optional[str]):
     """
     Background function to run brand analysis
@@ -3850,172 +2856,68 @@ async def run_brand_analysis_background(analysis_id: str, brand, keywords: List[
         await db_service.update_brand_analysis_status(analysis_id, "running")
         print(f"Updated analysis status to 'running'")
         
-        # Use ScraperService approach like campaign analysis
-        print(f"🔄 Using ScraperService approach for {len(platforms)} platforms")
+        # Import analysis service
+        from app.services.analysis_service_v2 import AnalysisServiceV2
+        analysis_service = AnalysisServiceV2()
         
-        # Initialize scraper service
-        from app.services.scraper_service import ScraperService
-        scraper_service = ScraperService()
-        
-        # Check if brand has keywords
-        if not keywords:
-            print("⚠️  Brand has no keywords configured")
-            print("💡 Please add keywords to the brand for scraping to work")
-            await db_service.update_brand_analysis_status(analysis_id, "failed")
-            return
-        
-        # Step 1: Check existing data files first, then scrape if needed
-        platforms_data = {}
-        posts_processed = 0
-        
+        # Run analysis for each platform
         for platform in platforms:
-            print(f"\n{'='*80}")
-            print(f"Processing platform: {platform.value.upper()} ({platforms.index(platform) + 1}/{len(platforms)})")
-            print(f"{'='*80}")
-            
             try:
-                # Check if dataset file already exists for this brand and platform
-                file_path = f"data/scraped_data/dataset_{platform.value}-scraper_{brand.name}.json"
-                import os
-                
-                if os.path.exists(file_path):
-                    print(f"📁 Found existing dataset file: {file_path}")
-                    
-                    # Load and validate existing data
-                    import pandas as pd
-                    try:
-                        existing_df = pd.read_json(file_path)
-                        if not existing_df.empty:
-                            platforms_data[platform.value] = file_path
-                            posts_processed += len(existing_df)
-                            print(f"✅ Using existing data for {platform.value} - {len(existing_df)} posts found")
-                            continue
-                        else:
-                            print(f"⚠️  Existing file is empty, will scrape new data")
-                    except Exception as e:
-                        print(f"⚠️  Error reading existing file: {str(e)}, will scrape new data")
+                # Scrape data for this platform
+                if platform == PlatformType.TIKTOK:
+                    from app.services.scraper_service import ScraperService
+                    scraper = ScraperService()
+                    df = await scraper.scrape_tiktok(
+                        keywords=keywords,
+                        max_posts=100,
+                        start_date=start_date,
+                        end_date=end_date,
+                        brand_name=brand.name
+                    )
+                elif platform == PlatformType.INSTAGRAM:
+                    from app.services.scraper_service import ScraperService
+                    scraper = ScraperService()
+                    df = await scraper.scrape_instagram(
+                        keywords=keywords,
+                        max_posts=100,
+                        start_date=start_date,
+                        end_date=end_date,
+                        brand_name=brand.name
+                    )
+                elif platform == PlatformType.TWITTER:
+                    from app.services.scraper_service import ScraperService
+                    scraper = ScraperService()
+                    df = await scraper.scrape_twitter(
+                        keywords=keywords,
+                        max_posts=100,
+                        start_date=start_date,
+                        end_date=end_date,
+                        brand_name=brand.name
+                    )
+                elif platform == PlatformType.YOUTUBE:
+                    from app.services.scraper_service import ScraperService
+                    scraper = ScraperService()
+                    df = await scraper.scrape_youtube(
+                        keywords=keywords,
+                        max_posts=100,
+                        start_date=start_date,
+                        end_date=end_date,
+                        brand_name=brand.name
+                    )
                 else:
-                    print(f"📁 No existing dataset found for {brand.name} on {platform.value}")
-                    print(f"🔄 Will proceed with scraping...")
-                
-                # Execute platform-specific scraping (only if no existing data or existing data is invalid)
-                print(f"🚀 Starting scraping for {platform.value}...")
-                import asyncio
-                from concurrent.futures import ThreadPoolExecutor
-                
-                async def run_scraping():
-                    with ThreadPoolExecutor(max_workers=1) as executor:
-                        if platform == PlatformType.TIKTOK:
-                            loop = asyncio.get_event_loop()
-                            scraped_data = await loop.run_in_executor(
-                                executor, 
-                                scraper_service.scrape_tiktok,
-                                keywords,
-                                100,
-                                start_date,
-                                end_date,
-                                brand.name
-                            )
-                        elif platform == PlatformType.INSTAGRAM:
-                            loop = asyncio.get_event_loop()
-                            scraped_data = await loop.run_in_executor(
-                                executor,
-                                scraper_service.scrape_instagram,
-                                keywords,
-                                100,
-                                start_date,
-                                end_date,
-                                brand.name
-                            )
-                        elif platform == PlatformType.TWITTER:
-                            loop = asyncio.get_event_loop()
-                            scraped_data = await loop.run_in_executor(
-                                executor,
-                                scraper_service.scrape_twitter,
-                                keywords,
-                                100,
-                                start_date,
-                                end_date,
-                                brand.name
-                            )
-                        elif platform == PlatformType.YOUTUBE:
-                            loop = asyncio.get_event_loop()
-                            scraped_data = await loop.run_in_executor(
-                                executor,
-                                scraper_service.scrape_youtube,
-                                keywords,
-                                100,
-                                start_date,
-                                end_date,
-                                brand.name
-                            )
-                        else:
-                            scraped_data = None
-                        return scraped_data
-                
-                scraped_data = await run_scraping()
-                
-                if scraped_data is None:
-                    print(f"⚠️  Unsupported platform: {platform.value}")
                     continue
                 
-                # Check if scraped_data is valid and not empty
-                if scraped_data is not None and not scraped_data.empty:
-                    # Save scraped data to file
-                    scraped_data.to_json(file_path, orient='records', indent=2)
-                    platforms_data[platform.value] = file_path
-                    posts_processed += len(scraped_data)
-                    print(f"✅ Scraping completed for {platform.value} - {len(scraped_data)} posts found")
-                    print(f"💾 Data saved to: {file_path}")
-                else:
-                    print(f"❌ No data scraped for {platform.value} - empty or invalid data")
-                    
+                # Process and analyze the data
+                if not df.empty:
+                    await analysis_service.process_platform_dataframe(
+                        df=df,
+                        platform=platform.value,
+                        brand_name=brand.name,
+                        campaign_id=None
+                    )
+                
             except Exception as e:
-                print(f"✗ Error processing {platform.value}: {str(e)}")
-                continue
-        
-        # If no posts were processed, fail the analysis
-        if posts_processed == 0:
-            print(f"❌ No data scraped for brand '{brand.name}' - analysis failed")
-            await db_service.update_brand_analysis_status(analysis_id, "failed")
-            return
-        
-        # Step 2: Data Cleansing and NLP Processing using AnalysisServiceV2
-        print(f"\n{'='*80}")
-        print(f"🔍 Starting data analysis and processing")
-        print(f"{'='*80}")
-        
-        try:
-            from app.services.analysis_service_v2 import analysis_service_v2
-            
-            results = await analysis_service_v2.process_multiple_platforms(
-                platforms_data=platforms_data,
-                brand_name=brand.name,
-                keywords=keywords,
-                save_to_db=True
-            )
-            
-            print(f"✅ Analysis completed - processed {len(results)} platform results")
-            
-        except Exception as e:
-            print(f"⚠️ Error in analysis processing: {str(e)}")
-            # Continue with manual processing as fallback
-            print("🔄 Falling back to manual processing...")
-            
-            # Process each platform using manual store approach
-            for platform in platforms:
-                try:
-                    if platform.value in platforms_data:
-                        file_path = platforms_data[platform.value]
-                        import pandas as pd
-                        df = pd.read_json(file_path)
-                        
-                        if not df.empty:
-                            await process_platform_data_manual(df, platform.value, brand, keywords)
-                            print(f"✅ Manual processing completed for {platform.value}")
-                        
-                except Exception as e:
-                    print(f"❌ Error in manual processing for {platform.value}: {str(e)}")
+                print(f"Error analyzing platform {platform.value}: {str(e)}")
                 continue
         
         # Get analysis results and save to new collections
@@ -4028,6 +2930,170 @@ async def run_brand_analysis_background(analysis_id: str, brand, keywords: List[
         # Update analysis status to failed
         await db_service.update_brand_analysis_status(analysis_id, "failed")
         print(f"Error in brand analysis background task: {str(e)}")
+
+    """
+    Generate sample brand analysis data for testing
+    """
+    try:
+        print(f"Generating sample data for brand: {brand_name}")
+        
+        # Generate sample metrics
+        import random
+        total_posts = random.randint(50, 200)
+        total_engagement = random.randint(1000, 5000)
+        
+        # Generate sentiment distribution
+        sentiment_counts = {
+            "Positive": random.randint(30, 60),
+            "Negative": random.randint(5, 15),
+            "Neutral": random.randint(20, 40)
+        }
+        
+        # Calculate percentages
+        total_sentiment = sum(sentiment_counts.values())
+        sentiment_percentage = {
+            k: round((v / total_sentiment * 100), 1) if total_sentiment > 0 else 0
+            for k, v in sentiment_counts.items()
+        }
+        
+        # Save brand metrics
+        metrics_data = {
+            "total_posts": total_posts,
+            "total_engagement": total_engagement,
+            "avg_engagement_per_post": round(total_engagement / total_posts, 2),
+            "engagement_rate": round((total_engagement / total_posts * 100), 2),
+            "sentiment_distribution": sentiment_counts,
+            "sentiment_percentage": sentiment_percentage,
+            "overall_sentiment_score": round(random.uniform(0.2, 0.8), 2)
+        }
+        await db_service.save_brand_metrics(analysis_id, brand_id, metrics_data)
+        print(f"Saved brand metrics: {metrics_data}")
+        
+        # Generate sample sentiment timeline
+        timeline_data = []
+        from datetime import datetime, timedelta
+        for i in range(7):  # Last 7 days
+            date = datetime.now() - timedelta(days=i)
+            timeline_data.append({
+                "date": date,
+                "sentiment_score": round(random.uniform(-0.5, 0.8), 2),
+                "positive_count": random.randint(5, 20),
+                "negative_count": random.randint(1, 5),
+                "neutral_count": random.randint(3, 10),
+                "total_posts": random.randint(10, 30)
+            })
+        
+        await db_service.save_brand_sentiment_timeline(analysis_id, brand_id, timeline_data)
+        print(f"Saved sentiment timeline: {len(timeline_data)} records")
+        
+        # Generate sample trending topics
+        topics_data = [
+            {"topic": f"{brand_name} smartphone", "topic_count": random.randint(20, 50), "sentiment": round(random.uniform(0.3, 0.8), 2), "engagement": random.randint(100, 500), "positive": random.randint(15, 30), "negative": random.randint(2, 8), "neutral": random.randint(5, 15)},
+            {"topic": f"{brand_name} technology", "topic_count": random.randint(15, 40), "sentiment": round(random.uniform(0.2, 0.7), 2), "engagement": random.randint(80, 400), "positive": random.randint(10, 25), "negative": random.randint(1, 5), "neutral": random.randint(4, 12)},
+            {"topic": f"{brand_name} review", "topic_count": random.randint(10, 30), "sentiment": round(random.uniform(0.1, 0.6), 2), "engagement": random.randint(60, 300), "positive": random.randint(8, 20), "negative": random.randint(1, 4), "neutral": random.randint(3, 10)},
+            {"topic": f"{brand_name} camera", "topic_count": random.randint(8, 25), "sentiment": round(random.uniform(0.4, 0.9), 2), "engagement": random.randint(50, 250), "positive": random.randint(6, 18), "negative": random.randint(1, 3), "neutral": random.randint(2, 8)},
+            {"topic": f"{brand_name} battery", "topic_count": random.randint(5, 20), "sentiment": round(random.uniform(0.2, 0.7), 2), "engagement": random.randint(40, 200), "positive": random.randint(4, 15), "negative": random.randint(1, 3), "neutral": random.randint(2, 6)}
+        ]
+        
+        await db_service.save_brand_trending_topics(analysis_id, brand_id, topics_data)
+        print(f"Saved trending topics: {len(topics_data)} topics")
+        
+        # Generate sample demographics
+        demographics_data = {
+            "platform": "all",
+            "total_analyzed": total_posts,
+            "age_groups": [
+                {"age_group": "18-24", "count": random.randint(20, 40), "percentage": round(random.uniform(25, 45), 1)},
+                {"age_group": "25-34", "count": random.randint(15, 35), "percentage": round(random.uniform(20, 40), 1)},
+                {"age_group": "35-44", "count": random.randint(10, 25), "percentage": round(random.uniform(15, 30), 1)},
+                {"age_group": "45+", "count": random.randint(5, 15), "percentage": round(random.uniform(8, 20), 1)}
+            ],
+            "genders": [
+                {"gender": "male", "count": random.randint(30, 60), "percentage": round(random.uniform(40, 70), 1)},
+                {"gender": "female", "count": random.randint(20, 50), "percentage": round(random.uniform(25, 55), 1)},
+                {"gender": "neutral", "count": random.randint(5, 15), "percentage": round(random.uniform(5, 20), 1)}
+            ],
+            "top_locations": [
+                {"location": "Indonesia", "count": random.randint(40, 80), "percentage": round(random.uniform(50, 80), 1)},
+                {"location": "Malaysia", "count": random.randint(10, 25), "percentage": round(random.uniform(10, 25), 1)},
+                {"location": "Singapore", "count": random.randint(5, 15), "percentage": round(random.uniform(5, 15), 1)}
+            ]
+        }
+        await db_service.save_brand_demographics(analysis_id, brand_id, demographics_data)
+        print(f"Saved demographics data")
+        
+        # Generate sample engagement patterns
+        patterns_data = {
+            "platform": "all",
+            "peak_hours": ["09:00", "12:00", "18:00", "21:00"],
+            "active_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+            "avg_engagement_rate": round(random.uniform(2.0, 8.0), 2),
+            "total_posts": total_posts
+        }
+        await db_service.save_brand_engagement_patterns(analysis_id, brand_id, patterns_data)
+        print(f"Saved engagement patterns")
+        
+        # Generate sample performance metrics
+        performance_data = {
+            "total_reach": total_posts * random.randint(50, 100),
+            "total_impressions": total_posts * random.randint(200, 500),
+            "total_engagement": total_engagement,
+            "engagement_rate": round((total_engagement / (total_posts * 100) * 100), 2),
+            "estimated_reach": total_posts * random.randint(30, 80),
+            "conversion_funnel": {
+                "impressions": total_posts * random.randint(200, 500),
+                "engagement": total_engagement,
+                "clicks": random.randint(total_engagement // 3, total_engagement // 2),
+                "conversions": random.randint(total_engagement // 10, total_engagement // 5)
+            }
+        }
+        await db_service.save_brand_performance(analysis_id, brand_id, performance_data)
+        print(f"Saved performance data")
+        
+        # Generate sample emotions
+        emotions_data = {
+            "total_analyzed": total_posts,
+            "dominant_emotion": random.choice(["joy", "neutral", "surprise"]),
+            "emotions": {
+                "joy": round(random.uniform(0.3, 0.6), 2),
+                "sadness": round(random.uniform(0.1, 0.3), 2),
+                "anger": round(random.uniform(0.05, 0.2), 2),
+                "fear": round(random.uniform(0.05, 0.15), 2),
+                "surprise": round(random.uniform(0.1, 0.4), 2),
+                "neutral": round(random.uniform(0.2, 0.4), 2)
+            }
+        }
+        await db_service.save_brand_emotions(analysis_id, brand_id, emotions_data)
+        print(f"Saved emotions data")
+        
+        # Generate sample competitive analysis
+        competitive_data = {
+            "competitive_metrics": {
+                "market_share": round(random.uniform(5, 25), 1),
+                "brand_awareness": round(random.uniform(60, 90), 1),
+                "customer_satisfaction": round(random.uniform(70, 95), 1)
+            },
+            "market_position": random.choice(["leader", "challenger", "follower", "niche"]),
+            "competitive_insights": [
+                f"{brand_name} shows strong engagement in smartphone category",
+                "Positive sentiment trends indicate good brand perception",
+                "Active user base across multiple age groups"
+            ],
+            "recommendations": [
+                "Increase content frequency during peak hours",
+                "Focus on trending topics for better reach",
+                "Engage more with user-generated content"
+            ]
+        }
+        await db_service.save_brand_competitive(analysis_id, brand_id, competitive_data)
+        print(f"Saved competitive analysis")
+        
+        print(f"=== Sample data generation completed for {brand_name} ===")
+        
+    except Exception as e:
+        print(f"Error generating sample data: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
 
 
 async def save_brand_analysis_results(analysis_id: str, brand_id: str):
@@ -4046,18 +3112,18 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
         
         # Calculate metrics
         total_posts = len(posts)
-        total_engagement = sum(
-            (int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0))
-            for post in posts
-        )
+        total_engagement = sum(post.engagement_count for post in posts if post.engagement_count)
         
         # Calculate sentiment distribution
         sentiment_counts = {"Positive": 0, "Negative": 0, "Neutral": 0}
         for post in posts:
-            if post.sentiment:
-                sentiment_str = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                if sentiment_str in sentiment_counts:
-                    sentiment_counts[sentiment_str] += 1
+            if post.sentiment_score:
+                if post.sentiment_score > 0.1:
+                    sentiment_counts["Positive"] += 1
+                elif post.sentiment_score < -0.1:
+                    sentiment_counts["Negative"] += 1
+                else:
+                    sentiment_counts["Neutral"] += 1
         
         # Calculate sentiment percentages
         total_sentiment = sum(sentiment_counts.values())
@@ -4065,32 +3131,6 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
             k: (v / total_sentiment * 100) if total_sentiment > 0 else 0
             for k, v in sentiment_counts.items()
         }
-        
-        # Calculate platform breakdown for metrics
-        platform_breakdown = {}
-        for post in posts:
-            platform_name = post.platform.value if hasattr(post.platform, 'value') else str(post.platform)
-            if platform_name not in platform_breakdown:
-                platform_breakdown[platform_name] = {
-                    "posts": 0,
-                    "engagement": 0,
-                    "sentiment": 0
-                }
-            
-            platform_breakdown[platform_name]["posts"] += 1
-            post_engagement = int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
-            platform_breakdown[platform_name]["engagement"] += post_engagement
-            
-            if post.sentiment:
-                # Convert sentiment enum to score: Positive=1, Negative=-1, Neutral=0
-                sentiment_value = 1 if post.sentiment.value == "Positive" else -1 if post.sentiment.value == "Negative" else 0
-                platform_breakdown[platform_name]["sentiment"] += sentiment_value
-        
-        # Calculate platform averages
-        for platform_data in platform_breakdown.values():
-            if platform_data["posts"] > 0:
-                platform_data["avg_engagement"] = round(platform_data["engagement"] / platform_data["posts"], 2)
-                platform_data["avg_sentiment"] = round(platform_data["sentiment"] / platform_data["posts"], 3)
         
         # Save brand metrics
         metrics_data = {
@@ -4100,9 +3140,7 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
             "engagement_rate": (total_engagement / total_posts * 100) if total_posts > 0 else 0,
             "sentiment_distribution": sentiment_counts,
             "sentiment_percentage": sentiment_percentage,
-            "overall_sentiment_score": (sentiment_counts["Positive"] - sentiment_counts["Negative"]) / total_posts if total_posts > 0 else 0,
-            "platform_breakdown": platform_breakdown,
-            "trending_topics": []  # Will be populated after topics are saved
+            "overall_sentiment_score": sum(post.sentiment_score for post in posts if post.sentiment_score) / total_posts if total_posts > 0 else 0
         }
         await db_service.save_brand_metrics(analysis_id, brand_id, metrics_data)
         
@@ -4115,11 +3153,10 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
             if post.posted_at:
                 date_key = post.posted_at.date()
                 daily_sentiment[date_key]["total"] += 1
-                if post.sentiment:
-                    sentiment_str = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                    if sentiment_str == "Positive":
+                if post.sentiment_score:
+                    if post.sentiment_score > 0.1:
                         daily_sentiment[date_key]["positive"] += 1
-                    elif sentiment_str == "Negative":
+                    elif post.sentiment_score < -0.1:
                         daily_sentiment[date_key]["negative"] += 1
                     else:
                         daily_sentiment[date_key]["neutral"] += 1
@@ -4137,112 +3174,44 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
         if timeline_data:
             await db_service.save_brand_sentiment_timeline(analysis_id, brand_id, timeline_data)
         
-        # Save trending topics (improved calculation)
+        # Save trending topics (simplified)
         topics_data = []
-        topic_analysis = {}
+        from collections import Counter
+        topic_counts = Counter()
         
         for post in posts:
-            if post.topic and post.topic != 'Unknown':
-                if post.topic not in topic_analysis:
-                    topic_analysis[post.topic] = {
-                        'count': 0,
-                        'sentiment_score': 0,
-                        'positive': 0,
-                        'negative': 0,
-                        'neutral': 0,
-                        'engagement': 0
-                    }
-                
-                topic_analysis[post.topic]['count'] += 1
-                
-                # Calculate engagement
-                post_engagement = int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
-                topic_analysis[post.topic]['engagement'] += post_engagement
-                
-                # Calculate sentiment
-                if post.sentiment:
-                    sentiment_str = post.sentiment.value if hasattr(post.sentiment, 'value') else str(post.sentiment)
-                    sentiment_value = 1 if sentiment_str == "Positive" else -1 if sentiment_str == "Negative" else 0
-                    topic_analysis[post.topic]['sentiment_score'] += sentiment_value
-                    if sentiment_str == "Positive":
-                        topic_analysis[post.topic]['positive'] += 1
-                    elif sentiment_str == "Negative":
-                        topic_analysis[post.topic]['negative'] += 1
-                    else:
-                        topic_analysis[post.topic]['neutral'] += 1
+            if post.topic:
+                topic_counts[post.topic] += 1
         
-        # Sort by count and get top 10
-        for topic, data in sorted(topic_analysis.items(), key=lambda x: x[1]['count'], reverse=True)[:10]:
-            avg_sentiment = data['sentiment_score'] / data['count'] if data['count'] > 0 else 0
+        for topic, count in topic_counts.most_common(10):
             topics_data.append({
                 "topic": topic,
-                "topic_count": data['count'],
-                "sentiment": round(avg_sentiment, 2),
-                "engagement": data['engagement'],
-                "positive": data['positive'],
-                "negative": data['negative'],
-                "neutral": data['neutral']
+                "topic_count": count,
+                "sentiment": 0.0,  # Simplified
+                "engagement": 0,    # Simplified
+                "positive": 0,      # Simplified
+                "negative": 0,      # Simplified
+                "neutral": 0        # Simplified
             })
         
         if topics_data:
             await db_service.save_brand_trending_topics(analysis_id, brand_id, topics_data)
         
-            # Update metrics with trending topics
-            metrics = await db_service.get_brand_metrics(analysis_id)
-            if metrics:
-                metrics.trending_topics = topics_data
-                await metrics.save()
-        
-        # Save demographics (improved calculation)
-        age_groups = {}
-        genders = {}
-        locations = {}
-        
-        for post in posts:
-            if post.author_age_group:
-                age_groups[post.author_age_group] = age_groups.get(post.author_age_group, 0) + 1
-            if post.author_gender:
-                genders[post.author_gender] = genders.get(post.author_gender, 0) + 1
-            if post.author_location_hint:
-                locations[post.author_location_hint] = locations.get(post.author_location_hint, 0) + 1
-        
+        # Save demographics (simplified)
         demographics_data = {
             "platform": "all",
             "total_analyzed": total_posts,
-            "age_groups": [{"age_group": age, "count": count, "percentage": round(count/total_posts*100, 2)} for age, count in age_groups.items()],
-            "genders": [{"gender": gender, "count": count, "percentage": round(count/total_posts*100, 2)} for gender, count in genders.items()],
-            "top_locations": [{"location": loc, "count": count, "percentage": round(count/total_posts*100, 2)} for loc, count in sorted(locations.items(), key=lambda x: x[1], reverse=True)[:10]]
+            "age_groups": [],
+            "genders": [],
+            "top_locations": []
         }
         await db_service.save_brand_demographics(analysis_id, brand_id, demographics_data)
         
-        # Save engagement patterns (improved calculation)
-        hourly_engagement = {}
-        daily_engagement = {}
-        
-        for post in posts:
-            if post.posted_at:
-                hour = post.posted_at.hour
-                day = post.posted_at.strftime("%A")
-                
-                if hour not in hourly_engagement:
-                    hourly_engagement[hour] = {"posts": 0, "engagement": 0}
-                if day not in daily_engagement:
-                    daily_engagement[day] = {"posts": 0, "engagement": 0}
-                
-                post_engagement = int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
-                hourly_engagement[hour]["posts"] += 1
-                hourly_engagement[hour]["engagement"] += post_engagement
-                daily_engagement[day]["posts"] += 1
-                daily_engagement[day]["engagement"] += post_engagement
-        
-        # Calculate peak hours and active days
-        peak_hours = sorted(hourly_engagement.items(), key=lambda x: x[1]["engagement"], reverse=True)[:3]
-        active_days = sorted(daily_engagement.items(), key=lambda x: x[1]["engagement"], reverse=True)[:3]
-        
+        # Save engagement patterns (simplified)
         patterns_data = {
             "platform": "all",
-            "peak_hours": [f"{hour:02d}:00" for hour, _ in peak_hours],
-            "active_days": [day for day, _ in active_days],
+            "peak_hours": [],
+            "active_days": [],
             "avg_engagement_rate": total_engagement / total_posts if total_posts > 0 else 0,
             "total_posts": total_posts
         }
@@ -4264,76 +3233,29 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
         }
         await db_service.save_brand_performance(analysis_id, brand_id, performance_data)
         
-        # Save emotions (improved calculation)
-        emotion_counts = {}
-        for post in posts:
-            if post.emotion and post.emotion != 'unknown':
-                emotion_counts[post.emotion] = emotion_counts.get(post.emotion, 0) + 1
-        
-        # Calculate emotion percentages
-        total_emotions = sum(emotion_counts.values())
-        emotion_percentages = {}
-        for emotion, count in emotion_counts.items():
-            emotion_percentages[emotion] = round(count / total_emotions * 100, 2) if total_emotions > 0 else 0
-        
-        # Find dominant emotion
-        dominant_emotion = max(emotion_counts.items(), key=lambda x: x[1])[0] if emotion_counts else "neutral"
-        
+        # Save emotions (simplified)
         emotions_data = {
             "total_analyzed": total_posts,
-            "dominant_emotion": dominant_emotion,
-            "emotions": emotion_percentages
+            "dominant_emotion": "neutral",
+            "emotions": {
+                "joy": 0.3,
+                "sadness": 0.2,
+                "anger": 0.1,
+                "fear": 0.1,
+                "surprise": 0.1,
+                "neutral": 0.2
+            }
         }
         await db_service.save_brand_emotions(analysis_id, brand_id, emotions_data)
         
-        # Save competitive analysis (improved calculation)
-        # Calculate competitive metrics
-        avg_engagement_per_post = total_engagement / total_posts if total_posts > 0 else 0
-        positive_sentiment_ratio = sentiment_counts.get("Positive", 0) / total_sentiment if total_sentiment > 0 else 0
-        
-        # Determine market position based on metrics
-        market_position = "leader" if avg_engagement_per_post > 50 and positive_sentiment_ratio > 0.6 else "follower" if avg_engagement_per_post < 20 or positive_sentiment_ratio < 0.4 else "medium"
-        
-        competitive_metrics = {
-            "avg_engagement_per_post": round(avg_engagement_per_post, 2),
-            "positive_sentiment_ratio": round(positive_sentiment_ratio, 3),
-            "total_posts": total_posts,
-            "total_engagement": total_engagement
-        }
-        
-        competitive_insights = []
-        if avg_engagement_per_post > 50:
-            competitive_insights.append("High engagement indicates strong brand resonance")
-        if positive_sentiment_ratio > 0.6:
-            competitive_insights.append("Positive sentiment shows good brand perception")
-        if total_posts > 100:
-            competitive_insights.append("Active content strategy with regular posting")
-        
-        recommendations = []
-        if avg_engagement_per_post < 20:
-            recommendations.append("Focus on creating more engaging content")
-        if positive_sentiment_ratio < 0.4:
-            recommendations.append("Improve brand messaging to increase positive sentiment")
-        if total_posts < 50:
-            recommendations.append("Increase content posting frequency")
-        
+        # Save competitive analysis (simplified)
         competitive_data = {
-            "competitive_metrics": competitive_metrics,
-            "market_position": market_position,
-            "competitive_insights": competitive_insights,
-            "recommendations": recommendations
+            "competitive_metrics": {},
+            "market_position": "medium",
+            "competitive_insights": ["Brand shows moderate engagement", "Sentiment is generally positive"],
+            "recommendations": ["Increase content frequency", "Focus on trending topics"]
         }
         await db_service.save_brand_competitive(analysis_id, brand_id, competitive_data)
-        
-        # Update analysis record with total metrics
-        from app.models.database import BrandAnalysis
-        from bson import ObjectId
-        analysis = await BrandAnalysis.find_one(BrandAnalysis.id == ObjectId(analysis_id))
-        if analysis:
-            analysis.total_posts = total_posts
-            analysis.total_engagement = total_engagement
-            await analysis.save()
-            print(f"✅ Updated analysis record: {total_posts} posts, {total_engagement} engagement")
         
     except Exception as e:
         print(f"Error saving brand analysis results: {str(e)}")
@@ -4341,397 +3263,43 @@ async def save_brand_analysis_results(analysis_id: str, brand_id: str):
 
 async def run_content_analysis_background(job_id: str, content, analysis_type: str, parameters: dict):
     """
-    Background function to run content analysis with realtime data scraping
+    Background function to run content analysis
     
     This function handles the actual analysis process for individual
-    content pieces in the background, including realtime data scraping.
+    content pieces in the background.
     """
     try:
         # Update job status to running
-        from app.models.database import AnalysisJob
-        job = await AnalysisJob.find_one(AnalysisJob.id == job_id)
-        if job:
-            await db_service.update_job_status(job, AnalysisStatusType.RUNNING)
+        await db_service.update_analysis_job_status(job_id, AnalysisStatusType.RUNNING)
         
-        # Step 1: Scrape realtime data from the content URL
-        print(f"Starting realtime content analysis for: {content.title}")
+        # Import analysis service
+        from app.services.analysis_service_v2 import AnalysisServiceV2
+        analysis_service = AnalysisServiceV2()
         
-        # Import scraping service
-        from app.services.content_scraper_service import ContentScraperService
-        
-        # Scrape realtime data
-        scraped_data = None
-        try:
-            async with ContentScraperService() as scraper:
-                scraped_data = await scraper.scrape_content_realtime(content.post_url, content.platform.value)
-                print(f"Scraped data: {scraped_data}")
-        except Exception as e:
-            print(f"Scraping failed, using existing data: {str(e)}")
-            scraped_data = None
-        
-        # Step 2: Process scraped data and update content analysis
-        if scraped_data and scraped_data.get('success'):
-            # Update content with realtime data
-            content.raw_analysis_data = scraped_data.get('data', {})
-            
-            # Extract engagement data
-            engagement_data = scraped_data.get('data', {}).get('engagement', {})
-            if engagement_data:
-                content.engagement_score = engagement_data.get('total_engagement', 0)
-                content.reach_estimate = engagement_data.get('reach', 0)
-                content.virality_score = engagement_data.get('virality_score', 0)
-            
-            # Extract sentiment data
-            sentiment_data = scraped_data.get('data', {}).get('sentiment', {})
-            if sentiment_data:
-                content.sentiment_overall = sentiment_data.get('overall', 0)
-                content.sentiment_positive = sentiment_data.get('positive', 0)
-                content.sentiment_negative = sentiment_data.get('negative', 0)
-                content.sentiment_neutral = sentiment_data.get('neutral', 0)
-                content.sentiment_confidence = sentiment_data.get('confidence', 0)
-            
-            # Extract emotion data
-            emotion_data = scraped_data.get('data', {}).get('emotions', {})
-            if emotion_data:
-                content.emotion_joy = emotion_data.get('joy', 0)
-                content.emotion_anger = emotion_data.get('anger', 0)
-                content.emotion_fear = emotion_data.get('fear', 0)
-                content.emotion_sadness = emotion_data.get('sadness', 0)
-                content.emotion_surprise = emotion_data.get('surprise', 0)
-                content.emotion_trust = emotion_data.get('trust', 0)
-                content.emotion_anticipation = emotion_data.get('anticipation', 0)
-                content.emotion_disgust = emotion_data.get('disgust', 0)
-                content.dominant_emotion = emotion_data.get('dominant', 'neutral')
-            
-            # Extract topic data
-            topic_data = scraped_data.get('data', {}).get('topics', {})
-            if topic_data:
-                content.topics = topic_data.get('topics', [])
-                content.dominant_topic = topic_data.get('dominant', 'general')
-            
-            # Calculate content health score
-            health_score = 0
-            if content.engagement_score and content.engagement_score > 0:
-                health_score += 30
-            if content.sentiment_overall and content.sentiment_overall > 0:
-                health_score += 25
-            if content.reach_estimate and content.reach_estimate > 1000:
-                health_score += 25
-            if content.virality_score and content.virality_score > 0.1:
-                health_score += 20
-            content.content_health_score = health_score
-            
-            # Update analysis status
-            content.analysis_status = "completed"
-            content.analyzed_at = datetime.now()
-            
-            # Save updated content
-            await content.save()
-            print(f"Content analysis completed with realtime data")
-        
+        # Run content-specific analysis
+        if analysis_type == "comprehensive":
+            # Perform comprehensive content analysis
+            await analysis_service.analyze_content_performance(content)
+            await analysis_service.analyze_content_sentiment(content)
+            await analysis_service.analyze_content_emotions(content)
+            await analysis_service.analyze_content_demographics(content)
+        elif analysis_type == "sentiment":
+            # Perform sentiment analysis only
+            await analysis_service.analyze_content_sentiment(content)
+        elif analysis_type == "engagement":
+            # Perform engagement analysis only
+            await analysis_service.analyze_content_performance(content)
         else:
-            # Fallback: Use content analysis service
-            print("Using fallback content analysis service")
-            from app.services.content_analysis_service import ContentAnalysisService
-            content_analysis_service = ContentAnalysisService()
-            
-            # Use the proper content analysis service
-            analysis_result = await content_analysis_service.trigger_content_analysis(str(content.id))
-            print(f"Content analysis result: {analysis_result}")
+            # Default to comprehensive analysis
+            await analysis_service.analyze_content_performance(content)
+            await analysis_service.analyze_content_sentiment(content)
         
         # Update job status to completed
-        job = await AnalysisJob.find_one(AnalysisJob.id == job_id)
-        if job:
-            await db_service.update_job_status(job, AnalysisStatusType.COMPLETED)
-        print(f"Content analysis job {job_id} completed successfully")
+        await db_service.update_analysis_job_status(job_id, AnalysisStatusType.COMPLETED)
         
     except Exception as e:
         # Update job status to failed
-        job = await AnalysisJob.find_one(AnalysisJob.id == job_id)
-        if job:
-            await db_service.update_job_status(job, AnalysisStatusType.FAILED)
+        await db_service.update_analysis_job_status(job_id, AnalysisStatusType.FAILED)
         print(f"Error in content analysis background task: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-
-
-# ============= CAMPAIGN ANALYSIS ENDPOINTS =============
-
-@router.get("/campaigns/{campaign_id}/summary")
-async def get_campaign_analysis_summary(
-    campaign_id: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    platforms: Optional[str] = None,
-    days: int = 30
-):
-    """
-    Get campaign analysis summary - similar to brand analysis but for campaigns
-    """
-    try:
-        print(f"🔍 Debug: Looking for campaign with ID: {campaign_id}")
-        
-        # Get campaign - convert string ID to ObjectId
-        from bson import ObjectId
-        try:
-            campaign = await Campaign.find_one(Campaign.id == ObjectId(campaign_id))
-            print(f"🔍 Debug: Campaign found: {campaign}")
-        except Exception as e:
-            print(f"Error finding campaign: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Invalid campaign ID format: {str(e)}")
-        
-        if not campaign:
-            print(f"🔍 Debug: Campaign not found for ID: {campaign_id}")
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        # Get campaign metrics directly
-        print(f"🔍 Debug: Looking for metrics for campaign ID: {campaign.id}")
-        try:
-            metrics = await CampaignMetrics.find(CampaignMetrics.campaign.id == campaign.id).to_list()
-            print(f"🔍 Debug: Found {len(metrics)} metrics")
-        except Exception as e:
-            print(f"Error finding campaign metrics: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error retrieving campaign metrics: {str(e)}")
-        
-        if not metrics:
-            # Return empty data if no metrics
-            return {
-                "campaign_name": campaign.campaign_name,
-                "period": "Last 30 days",
-                "total_posts": 0,
-                "total_engagement": 0,
-                "avg_engagement_per_post": 0,
-                "sentiment_distribution": {
-                    "Positive": 0,
-                    "Negative": 0,
-                    "Neutral": 0
-                },
-                "sentiment_percentage": {
-                    "Positive": 0,
-                    "Negative": 0,
-                    "Neutral": 0
-                },
-                "platform_breakdown": {},
-                "trending_topics": [],
-                "campaign_health_score": 0
-            }
-        
-        # Use latest metrics for summary
-        latest_metric = metrics[-1]
-        
-        # Calculate sentiment distribution
-        total_mentions = latest_metric.total_mentions
-        positive_count = latest_metric.positive_count
-        negative_count = latest_metric.negative_count
-        neutral_count = latest_metric.neutral_count
-        
-        # Calculate engagement metrics
-        total_engagement = latest_metric.total_likes + latest_metric.total_comments + latest_metric.total_shares
-        
-        # Calculate engagement rate using the formula: avg_engagement_per_post / 100
-        avg_engagement_per_post = total_engagement / total_mentions if total_mentions > 0 else 0
-        engagement_rate = avg_engagement_per_post / 100
-        
-        # Calculate platform breakdown from campaign metrics
-        platform_breakdown = {}
-        
-        # Get all metrics grouped by platform if available
-        all_metrics = await CampaignMetrics.find(CampaignMetrics.campaign.id == campaign.id).to_list()
-        
-        if all_metrics:
-            # Group metrics by platform if platform info is available
-            for metric in all_metrics:
-                platform_name = getattr(metric, 'platform', 'all')
-                if platform_name and platform_name != 'all':
-                    if platform_name not in platform_breakdown:
-                        platform_breakdown[platform_name] = {
-                            "posts": 0,
-                            "engagement": 0,
-                            "sentiment": 0
-                        }
-                    platform_breakdown[platform_name]["posts"] += metric.total_mentions
-                    platform_breakdown[platform_name]["engagement"] += metric.total_likes + metric.total_comments + metric.total_shares
-                    platform_breakdown[platform_name]["sentiment"] += metric.sentiment_score * metric.total_mentions
-            
-            # Calculate averages for sentiment
-            for platform_data in platform_breakdown.values():
-                if platform_data["posts"] > 0:
-                    platform_data["sentiment"] = round(platform_data["sentiment"] / platform_data["posts"], 3)
-        
-        # If no platform-specific data, get from posts directly
-        if not platform_breakdown:
-            # Query posts directly using Post model
-            campaign_posts = await Post.find(Post.campaign.id == campaign.id).to_list()
-            
-            for post in campaign_posts:
-                platform_name = post.platform.value
-                if platform_name not in platform_breakdown:
-                    platform_breakdown[platform_name] = {
-                        "posts": 0,
-                        "engagement": 0,
-                        "sentiment": 0
-                    }
-                
-                platform_breakdown[platform_name]["posts"] += 1
-                platform_breakdown[platform_name]["engagement"] += int(post.like_count or 0) + int(post.comment_count or 0) + int(post.share_count or 0)
-                
-                # Calculate sentiment for this platform
-                if post.sentiment is not None:
-                    sentiment_value = 1 if post.sentiment.value == "Positive" else -1 if post.sentiment.value == "Negative" else 0
-                    platform_breakdown[platform_name]["sentiment"] += sentiment_value
-            
-            # Calculate platform-specific sentiment scores
-            for platform_data in platform_breakdown.values():
-                if platform_data["posts"] > 0:
-                    platform_data["sentiment"] = round(platform_data["sentiment"] / platform_data["posts"], 3)
-        
-        return {
-            "campaign_name": campaign.campaign_name,
-            "period": "Last 30 days",
-            "total_posts": total_mentions,  # Use mentions as posts
-            "total_engagement": total_engagement,
-            "avg_engagement_per_post": avg_engagement_per_post,
-            "engagement_rate": engagement_rate,
-            "sentiment_distribution": {
-                "Positive": positive_count,
-                "Negative": negative_count,
-                "Neutral": neutral_count
-            },
-            "sentiment_percentage": {
-                "Positive": round(positive_count / total_mentions * 100, 2) if total_mentions > 0 else 0,
-                "Negative": round(negative_count / total_mentions * 100, 2) if total_mentions > 0 else 0,
-                "Neutral": round(neutral_count / total_mentions * 100, 2) if total_mentions > 0 else 0
-            },
-            "platform_breakdown": platform_breakdown,
-            "trending_topics": [],  # Could be populated from campaign keywords
-            "campaign_health_score": latest_metric.sentiment_score
-        }
-        
-    except Exception as e:
-        print(f"Error getting campaign summary: {str(e)}")
-        import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error getting campaign summary: {str(e)}")
-
-
-@router.get("/campaigns/{campaign_id}/sentiment-timeline")
-async def get_campaign_sentiment_timeline(
-    campaign_id: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    platforms: Optional[str] = None,
-    days: int = 30
-):
-    """
-    Get campaign sentiment timeline
-    """
-    try:
-        # Get campaign - convert string ID to ObjectId
-        from bson import ObjectId
-        campaign = await Campaign.find_one(Campaign.id == ObjectId(campaign_id))
-        if not campaign:
-            raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        # Get campaign metrics directly
-        metrics = await CampaignMetrics.find(CampaignMetrics.campaign.id == campaign.id).to_list()
-        
-        if not metrics:
-            return {
-                "campaign_name": campaign.campaign_name,
-                "sentiment_timeline": [],
-                "period": "Last 30 days"
-            }
-        
-        # Convert metrics to timeline format (matching brand API format)
-        timeline_data = []
-        for metric in metrics:
-            total_posts = metric.total_mentions
-            positive_count = metric.positive_count
-            negative_count = metric.negative_count
-            neutral_count = metric.neutral_count
-            
-            # Calculate percentages
-            positive_percentage = (positive_count / total_posts * 100) if total_posts > 0 else 0
-            negative_percentage = (negative_count / total_posts * 100) if total_posts > 0 else 0
-            neutral_percentage = (neutral_count / total_posts * 100) if total_posts > 0 else 0
-            
-            # Calculate total engagement
-            total_engagement = metric.total_likes + metric.total_comments + metric.total_shares
-            
-            timeline_data.append({
-                "date": metric.metric_date.strftime("%Y-%m-%d"),
-                "Positive": positive_count,
-                "Negative": negative_count,
-                "Neutral": neutral_count,
-                "positive_percentage": round(positive_percentage, 1),
-                "negative_percentage": round(negative_percentage, 1),
-                "neutral_percentage": round(neutral_percentage, 1),
-                "total_posts": total_posts,
-                "total_likes": metric.total_likes,
-                "total_comments": metric.total_comments,
-                "total_shares": metric.total_shares,
-                "avg_sentiment": round(metric.sentiment_score, 3)
-            })
-        
-        # Calculate overall sentiment distribution for frontend
-        latest_metric = metrics[-1] if metrics else None
-        if latest_metric:
-            total_mentions = latest_metric.total_mentions
-            positive_count = latest_metric.positive_count
-            negative_count = latest_metric.negative_count
-            neutral_count = latest_metric.neutral_count
-            
-            # Calculate percentages
-            positive_percentage = (positive_count / total_mentions * 100) if total_mentions > 0 else 0
-            negative_percentage = (negative_count / total_mentions * 100) if total_mentions > 0 else 0
-            neutral_percentage = (neutral_count / total_mentions * 100) if total_mentions > 0 else 0
-            
-            # Calculate overall sentiment score
-            overall_score = latest_metric.sentiment_score
-            confidence_level = min(100, max(0, abs(overall_score) * 100))  # Convert to 0-100 scale
-            
-            sentiment_distribution = {
-                "Positive": positive_count,
-                "Negative": negative_count,
-                "Neutral": neutral_count
-            }
-            
-            sentiment_percentage = {
-                "Positive": round(positive_percentage, 1),
-                "Negative": round(negative_percentage, 1),
-                "Neutral": round(neutral_percentage, 1)
-            }
-            
-            sentiment_metrics = {
-                "overall_score": round(overall_score, 1),
-                "confidence_level": round(confidence_level, 1),
-                "positive": round(positive_percentage, 1),
-                "neutral": round(neutral_percentage, 1),
-                "negative": round(negative_percentage, 1)
-            }
-        else:
-            sentiment_distribution = {"Positive": 0, "Negative": 0, "Neutral": 0}
-            sentiment_percentage = {"Positive": 0, "Negative": 0, "Neutral": 0}
-            sentiment_metrics = {
-                "overall_score": 0,
-                "confidence_level": 0,
-                "positive": 0,
-                "neutral": 0,
-                "negative": 0
-            }
-
-        return {
-            "campaign_name": campaign.campaign_name,
-            "platform": "all",
-            "timeline": timeline_data,
-            "period": "Last 30 days",
-            "sentiment_distribution": sentiment_distribution,
-            "sentiment_percentage": sentiment_percentage,
-            "sentiment_metrics": sentiment_metrics
-        }
-        
-    except Exception as e:
-        print(f"Error getting campaign sentiment timeline: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error getting campaign sentiment timeline: {str(e)}")
 
 

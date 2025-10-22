@@ -134,17 +134,17 @@ export function EntityDetails({ entity, entityType }: EntityDetailsProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <h4 className="font-medium mb-2">Category</h4>
-              <Badge variant="outline">{brand.category}</Badge>
+              <Badge variant="outline">{brand.category || 'No Category'}</Badge>
             </div>
             <div>
               <h4 className="font-medium mb-2">Status</h4>
               <Badge variant="outline" className="capitalize">
-                {brand.status}
+                {brand.status || 'active'}
               </Badge>
             </div>
             <div>
               <h4 className="font-medium mb-2">Created Date</h4>
-              <p className="text-sm">{brand.created_date}</p>
+              <p className="text-sm">{brand.created_date || 'Unknown'}</p>
             </div>
           </div>
           
@@ -153,7 +153,7 @@ export function EntityDetails({ entity, entityType }: EntityDetailsProps) {
           <div>
             <h4 className="font-medium mb-2">Competitors</h4>
             <div className="flex flex-wrap gap-2">
-              {brand.competitors.map((competitor, index) => (
+              {brand.competitors?.map((competitor, index) => (
                 <Badge key={index} variant="secondary">
                   {competitor}
                 </Badge>
@@ -168,12 +168,12 @@ export function EntityDetails({ entity, entityType }: EntityDetailsProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
-            Keywords ({brand.keywords.length})
+            Keywords ({brand.keywords?.length || 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {brand.keywords.map((keyword, index) => (
+            {brand.keywords?.map((keyword, index) => (
               <Badge key={index} variant="outline" className="text-sm">
                 {keyword}
               </Badge>
@@ -187,12 +187,12 @@ export function EntityDetails({ entity, entityType }: EntityDetailsProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Link className="h-5 w-5" />
-            Post URLs ({brand.postUrls.length})
+            Post URLs ({brand.postUrls?.length || 0})
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {brand.postUrls.map((url, index) => (
+            {brand.postUrls?.map((url, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                 <div className="flex-1">
                   <p className="text-sm font-mono break-all">{url}</p>

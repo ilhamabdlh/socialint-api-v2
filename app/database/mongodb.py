@@ -13,7 +13,17 @@ from app.models.database import (
     Campaign,
     CampaignMetrics,
     PostURL,
-    PlatformAnalysis
+    PlatformAnalysis,
+    BrandAnalysis,
+    BrandMetrics,
+    BrandSentimentTimeline,
+    BrandTrendingTopics,
+    BrandDemographics,
+    BrandEngagementPatterns,
+    BrandPerformance,
+    BrandEmotions,
+    BrandCompetitive,
+    ContentAnalysis
 )
 
 # Global client instance
@@ -43,7 +53,17 @@ async def connect_to_mongodb():
                 Campaign,
                 CampaignMetrics,
                 PostURL,
-                PlatformAnalysis
+                PlatformAnalysis,
+                BrandAnalysis,
+                BrandMetrics,
+                BrandSentimentTimeline,
+                BrandTrendingTopics,
+                BrandDemographics,
+                BrandEngagementPatterns,
+                BrandPerformance,
+                BrandEmotions,
+                BrandCompetitive,
+                ContentAnalysis
             ]
         )
         

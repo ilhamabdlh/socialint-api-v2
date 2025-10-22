@@ -128,7 +128,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
     switch (entityType) {
       case 'campaign': return (entity as Campaign).name;
       case 'brand': return (entity as Brand).name;
-      case 'content': return 'testbrand'; // Default untuk content
+      case 'content': return (entity as Content).author; // Use content author as brand name
       default: return 'testbrand';
     }
   };
@@ -154,17 +154,33 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           queryParams.append('platforms', filters.platforms.join(','));
         }
         
-        // Load brand summary with filters
-        const summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        // Load summary with filters - use appropriate API based on entity type
+        let summaryUrl: string;
+        if (entityType === 'campaign') {
+          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        } else if (entityType === 'content') {
+          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        } else {
+          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/summary-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        }
+        
         const summaryResponse = await fetch(summaryUrl);
         if (summaryResponse.ok) {
           const summaryData = await summaryResponse.json();
           setBrandSummary(summaryData);
         }
         
-        // Load sentiment timeline with filters
+        // Load sentiment timeline with filters - use appropriate API based on entity type
         try {
-          const timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          let timelineUrl: string;
+          if (entityType === 'campaign') {
+            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else if (entityType === 'content') {
+            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else {
+            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          }
+          
           const timelineResponse = await fetch(timelineUrl);
           if (timelineResponse.ok) {
             const timelineData = await timelineResponse.json();
@@ -177,19 +193,36 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load additional data for tabs
         try {
         // Load trending topics with filters
-        const topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        let topicsUrl: string;
+        if (entityType === 'content') {
+          topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        } else {
+          topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        }
         const topicsResponse = await fetch(topicsUrl);
         if (topicsResponse.ok) {
           const topicsData = await topicsResponse.json();
           console.log('Trending topics loaded:', topicsData);
-          setTrendingTopics(topicsData);
+          // Handle both array format and object format
+          if (Array.isArray(topicsData)) {
+            setTrendingTopics(topicsData);
+          } else if (topicsData.trending_topics && Array.isArray(topicsData.trending_topics)) {
+            setTrendingTopics(topicsData.trending_topics);
+          } else {
+            setTrendingTopics([]);
+          }
         } else {
           console.error('Failed to load trending topics:', topicsResponse.status, topicsResponse.statusText);
         }
 
         // Load engagement patterns with filters
         try {
-          const engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          let engagementUrl: string;
+          if (entityType === 'content') {
+            engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else {
+            engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          }
           const engagementResponse = await fetch(engagementUrl);
           if (engagementResponse.ok) {
             const engagementData = await engagementResponse.json();
@@ -202,7 +235,12 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
         // Load performance data with filters
         try {
-          const performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          let performanceUrl: string;
+          if (entityType === 'content') {
+            performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else {
+            performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          }
           const performanceResponse = await fetch(performanceUrl);
           if (performanceResponse.ok) {
             const performanceData = await performanceResponse.json();
@@ -214,7 +252,12 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         }
           
           // Load emotions data with filters
-          const emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          let emotionsUrl: string;
+          if (entityType === 'content') {
+            emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else {
+            emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          }
           const emotionsResponse = await fetch(emotionsUrl);
           if (emotionsResponse.ok) {
             const emotionsData = await emotionsResponse.json();
@@ -223,7 +266,12 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           }
           
           // Load demographics data with filters
-          const demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          let demographicsUrl: string;
+          if (entityType === 'content') {
+            demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else {
+            demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          }
           const demographicsResponse = await fetch(demographicsUrl);
           if (demographicsResponse.ok) {
             const demographicsData = await demographicsResponse.json();
@@ -232,7 +280,13 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           }
           
           // Load performance metrics with filters
-          const performanceResponse = await fetch(`https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+          let performanceMetricsUrl: string;
+          if (entityType === 'content') {
+            performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else {
+            performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandName}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          }
+          const performanceResponse = await fetch(performanceMetricsUrl);
           if (performanceResponse.ok) {
             const performanceData = await performanceResponse.json();
             console.log('Performance data loaded:', performanceData);
@@ -283,14 +337,14 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
     total_engagement: data.total_engagement || 0,
     avg_engagement_per_post: data.avg_engagement_per_post || 0,
     sentiment_distribution: {
-      Positive: data.sentiment_distribution.Positive || 0,
-      Negative: data.sentiment_distribution.Negative || 0,
-      Neutral: data.sentiment_distribution.Neutral || 0
+      Positive: data.sentiment_distribution?.Positive || 0,
+      Negative: data.sentiment_distribution?.Negative || 0,
+      Neutral: data.sentiment_distribution?.Neutral || 0
     },
     sentiment_percentage: {
-      Positive: data.sentiment_percentage.Positive || 0,
-      Negative: data.sentiment_percentage.Negative || 0,
-      Neutral: data.sentiment_percentage.Neutral || 0
+      Positive: data.sentiment_percentage?.Positive || 0,
+      Negative: data.sentiment_percentage?.Negative || 0,
+      Neutral: data.sentiment_percentage?.Neutral || 0
     },
     platform_breakdown: data.platform_breakdown || {},
     trending_topics: data.trending_topics || []
@@ -317,7 +371,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
 
 
   // Use filtered trending topics data
-  const topicData = (brandSummary ? brandSummary.trending_topics : safeData.trending_topics).map(topic => ({
+  const topicData = (brandSummary?.trending_topics || safeData.trending_topics || []).map(topic => ({
     name: topic.topic,
     mentions: topic.count || 0,
     sentiment: Math.round((topic.sentiment || 0) * 100)
@@ -512,7 +566,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               <div>
                 <p className="text-sm text-muted-foreground">Number of Talks</p>
                 <p className="text-2xl font-bold">
-                  {brandSummary ? brandSummary.total_posts?.toLocaleString() || '0' : safeData.total_posts.toLocaleString()}
+                  {(brandSummary?.total_posts ?? safeData.total_posts ?? 0).toLocaleString()}
                 </p>
               </div>
               <div className="p-2 rounded-lg bg-blue-100">
@@ -528,13 +582,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
               <div>
                 <p className="text-sm text-muted-foreground">Engagement Rate</p>
                 <p className="text-2xl font-bold">
-                  {performanceData?.engagement_rate ? 
-                    `${performanceData.engagement_rate.toFixed(1)}%` : 
-                    brandSummary && brandSummary.total_posts > 0 ? 
-                      `${((brandSummary.total_engagement / brandSummary.total_posts) * 100).toFixed(1)}%` : 
-                      safeData.total_posts > 0 ? 
-                        `${((safeData.total_engagement / safeData.total_posts) * 100).toFixed(1)}%` : 
-                        '0%'
+                  {brandSummary?.engagement_rate !== undefined ? 
+                    `${brandSummary.engagement_rate.toFixed(1)}%` : 
+                    performanceData?.engagement_rate ? 
+                      `${performanceData.engagement_rate.toFixed(1)}%` : 
+                      '0%'
                   }
                 </p>
               </div>
@@ -552,7 +604,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                 <p className="text-sm text-muted-foreground">Reach</p>
                 <p className="text-2xl font-bold">
                   {(() => {
-                    const engagement = brandSummary ? brandSummary.total_engagement : safeData.total_engagement;
+                    const engagement = (brandSummary?.total_engagement ?? safeData.total_engagement) || 0;
                     if (engagement > 1000000) {
                       return `${(engagement / 1000000).toFixed(1)}M`;
                     } else if (engagement > 1000) {
@@ -1134,7 +1186,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         <div className="text-sm text-gray-600 mb-1">Total Reach</div>
                         <div className="text-2xl font-bold text-blue-600">
                           {(() => {
-                            const reach = performanceData?.estimated_reach || 0;
+                            const reach = performanceData?.performance_metrics?.estimated_reach || performanceData?.estimated_reach || 0;
                             if (reach >= 1000000) {
                               return `${(reach / 1000000).toFixed(1)}M`;
                             } else if (reach >= 1000) {
@@ -1149,7 +1201,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         <div className="text-sm text-gray-600 mb-1">Impressions</div>
                         <div className="text-2xl font-bold text-green-600">
                           {(() => {
-                            const impressions = performanceData?.total_engagement || 0;
+                            const impressions = performanceData?.performance_metrics?.total_engagement || performanceData?.total_engagement || 0;
                             if (impressions >= 1000000) {
                               return `${(impressions / 1000000).toFixed(1)}M`;
                             } else if (impressions >= 1000) {
@@ -1163,13 +1215,13 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       <div className="p-4 bg-orange-50 rounded-lg text-center">
                         <div className="text-sm text-gray-600 mb-1">Share Rate</div>
                         <div className="text-2xl font-bold text-orange-600">
-                          {performanceData ? `${Math.round((performanceData.engagement_rate || 0) * 0.34)}%` : '3.4%'}
+                          {performanceData ? `${Math.round((performanceData.performance_metrics?.engagement_rate || performanceData?.engagement_rate || 0) * 0.34)}%` : '3.4%'}
                         </div>
                       </div>
                       <div className="p-4 bg-purple-50 rounded-lg text-center">
                         <div className="text-sm text-gray-600 mb-1">Click Rate</div>
                         <div className="text-2xl font-bold text-purple-600">
-                          {performanceData ? `${Math.round((performanceData.engagement_rate || 0) * 0.28)}%` : '2.8%'}
+                          {performanceData ? `${Math.round((performanceData.performance_metrics?.engagement_rate || performanceData?.engagement_rate || 0) * 0.28)}%` : '2.8%'}
                         </div>
                       </div>
                     </div>
@@ -1186,28 +1238,28 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Impressions</span>
-                          <span>{performanceData ? performanceData.total_engagement?.toLocaleString() || '0' : '0'}</span>
+                          <span>{performanceData?.performance_metrics?.views?.toLocaleString() || performanceData?.views?.toLocaleString() || '0'}</span>
                         </div>
                         <Progress value={100} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Engagement</span>
-                          <span>{performanceData ? Math.round((performanceData.total_engagement || 0) * 0.8).toLocaleString() : '0'}</span>
+                          <span>{performanceData?.performance_metrics?.total_engagement?.toLocaleString() || performanceData?.total_engagement?.toLocaleString() || '0'}</span>
                         </div>
                         <Progress value={80} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Clicks</span>
-                          <span>{performanceData ? Math.round((performanceData.total_engagement || 0) * 0.3).toLocaleString() : '0'}</span>
+                          <span>{performanceData?.performance_metrics?.estimated_reach ? Math.round(performanceData.performance_metrics.estimated_reach * 0.3).toLocaleString() : performanceData?.estimated_reach ? Math.round(performanceData.estimated_reach * 0.3).toLocaleString() : '0'}</span>
                         </div>
                         <Progress value={30} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span>Conversions</span>
-                          <span>{performanceData ? Math.round((performanceData.total_engagement || 0) * 0.1).toLocaleString() : '0'}</span>
+                          <span>{performanceData?.performance_metrics?.conversion_rate ? Math.round(performanceData.performance_metrics.conversion_rate).toLocaleString() : performanceData?.conversion_rate ? Math.round(performanceData.conversion_rate).toLocaleString() : '0'}</span>
                         </div>
                         <Progress value={10} className="h-2" />
                       </div>
