@@ -4560,8 +4560,16 @@ async def get_campaign_analysis_summary(
         
         # If no platform-specific data, get from posts directly
         if not platform_breakdown:
-            # Query posts directly using Post model
-            campaign_posts = await Post.find(Post.campaign.id == campaign.id).to_list()
+            # Query posts directly using Post model based on the campaign's brand
+            # Note: Post model does not have a direct link to Campaign, only to Brand
+            # so we fallback to aggregating posts by the associated brand
+            try:
+                brand = await campaign.brand.fetch()
+            except Exception:
+                brand = None
+            campaign_posts = []
+            if brand:
+                campaign_posts = await Post.find(Post.brand.id == brand.id).to_list()
             
             for post in campaign_posts:
                 platform_name = post.platform.value
