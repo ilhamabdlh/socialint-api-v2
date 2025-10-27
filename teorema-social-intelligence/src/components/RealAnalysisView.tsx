@@ -180,11 +180,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load summary with filters - use appropriate API based on entity type
         let summaryUrl: string;
         if (entityType === 'campaign') {
-          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else if (entityType === 'content') {
-          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else {
-          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/summary-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/summary-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         }
         
         const summaryResponse = await fetch(summaryUrl);
@@ -197,11 +197,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         try {
           let timelineUrl: string;
           if (entityType === 'campaign') {
-            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            timelineUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'content') {
-            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            timelineUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            timelineUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           
           const timelineResponse = await fetch(timelineUrl);
@@ -218,11 +218,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load trending topics with filters
         let topicsUrl: string;
         if (entityType === 'content') {
-          topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          topicsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else if (entityType === 'campaign') {
-          topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          topicsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else {
-          topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          topicsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         }
         const topicsResponse = await fetch(topicsUrl);
         if (topicsResponse.ok) {
@@ -244,11 +244,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         try {
           let engagementUrl: string;
           if (entityType === 'content') {
-            engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            engagementUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            engagementUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            engagementUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const engagementResponse = await fetch(engagementUrl);
           if (engagementResponse.ok) {
@@ -264,11 +264,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         try {
           let performanceUrl: string;
           if (entityType === 'content') {
-            performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const performanceResponse = await fetch(performanceUrl);
           if (performanceResponse.ok) {
@@ -283,11 +283,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           // Load emotions data with filters
           let emotionsUrl: string;
           if (entityType === 'content') {
-            emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            emotionsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            emotionsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            emotionsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const emotionsResponse = await fetch(emotionsUrl);
           if (emotionsResponse.ok) {
@@ -299,11 +299,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           // Load demographics data with filters
           let demographicsUrl: string;
           if (entityType === 'content') {
-            demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            demographicsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/audience${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            demographicsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/audience${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            demographicsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const demographicsResponse = await fetch(demographicsUrl);
           if (demographicsResponse.ok) {
@@ -315,11 +315,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           // Load performance metrics with filters
           let performanceMetricsUrl: string;
           if (entityType === 'content') {
-            performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceMetricsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceMetricsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceMetricsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const performanceResponse = await fetch(performanceMetricsUrl);
           if (performanceResponse.ok) {

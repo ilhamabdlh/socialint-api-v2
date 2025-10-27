@@ -6,7 +6,7 @@
  */
 
 export const config = {
-  apiUrl: import.meta.env.VITE_API_URL || 'https://api.staging.teoremaintelligence.com',
+  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   appName: import.meta.env.VITE_APP_NAME || 'Social Intelligence Dashboard',
   appVersion: import.meta.env.VITE_APP_VERSION || '2.1.0',
 };
