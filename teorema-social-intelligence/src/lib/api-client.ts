@@ -380,6 +380,127 @@ export const campaignAPI = {
   async getActive(): Promise<{ count: number; campaigns: any[] }> {
     return fetchAPI<{ count: number; campaigns: any[] }>('/campaigns/active');
   },
+
+  // =============================================================================
+  // Campaign Analysis Results API
+  // =============================================================================
+
+  /**
+   * Get campaign analysis summary
+   */
+  async getAnalysisSummary(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    postUrls?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    if (postUrls) params.append('post_urls', postUrls);
+    
+    return fetchAPI<any>(`/results/campaigns/${campaignId}/summary?${params.toString()}`);
+  },
+
+  /**
+   * Get campaign sentiment timeline
+   */
+  async getSentimentTimeline(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    postUrls?: string,
+    days: number = 30
+  ): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    if (postUrls) params.append('post_urls', postUrls);
+    
+    return fetchAPI<any>(`/results/campaigns/${campaignId}/sentiment-timeline?${params.toString()}`);
+  },
+
+  /**
+   * Get campaign trending topics
+   */
+  async getTrendingTopics(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    postUrls?: string,
+    limit: number = 10
+  ): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    if (postUrls) params.append('post_urls', postUrls);
+    
+    return fetchAPI<any>(`/results/campaigns/${campaignId}/trending-topics?${params.toString()}`);
+  },
+
+  /**
+   * Get campaign emotions analysis
+   */
+  async getEmotions(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    postUrls?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    if (postUrls) params.append('post_urls', postUrls);
+    
+    return fetchAPI<any>(`/results/campaigns/${campaignId}/emotions?${params.toString()}`);
+  },
+
+  /**
+   * Get campaign audience demographics
+   */
+  async getAudience(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    postUrls?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    if (postUrls) params.append('post_urls', postUrls);
+    
+    return fetchAPI<any>(`/results/campaigns/${campaignId}/audience?${params.toString()}`);
+  },
+
+  /**
+   * Get campaign performance metrics
+   */
+  async getPerformance(
+    campaignId: string,
+    startDate?: string,
+    endDate?: string,
+    platforms?: string,
+    postUrls?: string
+  ): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (platforms) params.append('platforms', platforms);
+    if (postUrls) params.append('post_urls', postUrls);
+    
+    return fetchAPI<any>(`/results/campaigns/${campaignId}/performance?${params.toString()}`);
+  },
 };
 
 // =============================================================================

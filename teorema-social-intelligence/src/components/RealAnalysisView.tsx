@@ -69,6 +69,13 @@ interface BrandSummaryData {
     topic: string;
     count: number;
     sentiment: number;
+    engagement: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    positive: number;
+    negative: number;
+    neutral: number;
   }>;
 }
 
@@ -173,7 +180,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load summary with filters - use appropriate API based on entity type
         let summaryUrl: string;
         if (entityType === 'campaign') {
-          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${campaignId}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else if (entityType === 'content') {
           summaryUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else {
@@ -189,8 +196,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load sentiment timeline with filters - use appropriate API based on entity type
         try {
           let timelineUrl: string;
-          if (entityType === 'campaign' && campaignId) {
-            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${campaignId}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          if (entityType === 'campaign') {
+            timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'content') {
             timelineUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
@@ -212,6 +219,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         let topicsUrl: string;
         if (entityType === 'content') {
           topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        } else if (entityType === 'campaign') {
+          topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else {
           topicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         }
@@ -236,6 +245,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           let engagementUrl: string;
           if (entityType === 'content') {
             engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else if (entityType === 'campaign') {
+            engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
             engagementUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
@@ -254,6 +265,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           let performanceUrl: string;
           if (entityType === 'content') {
             performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else if (entityType === 'campaign') {
+            performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
             performanceUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
@@ -271,6 +284,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           let emotionsUrl: string;
           if (entityType === 'content') {
             emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else if (entityType === 'campaign') {
+            emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
             emotionsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
@@ -285,6 +300,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           let demographicsUrl: string;
           if (entityType === 'content') {
             demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else if (entityType === 'campaign') {
+            demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/audience${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
             demographicsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
@@ -299,6 +316,8 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           let performanceMetricsUrl: string;
           if (entityType === 'content') {
             performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          } else if (entityType === 'campaign') {
+            performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
             performanceMetricsUrl = `https://api.staging.teoremaintelligence.com/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
@@ -596,14 +615,18 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Engagement Rate</p>
+                <p className="text-sm text-muted-foreground">Number of Engagement</p>
                 <p className="text-2xl font-bold">
-                  {brandSummary?.engagement_rate !== undefined ? 
-                    `${brandSummary.engagement_rate.toFixed(1)}%` : 
-                    performanceData?.engagement_rate ? 
-                      `${performanceData.engagement_rate.toFixed(1)}%` : 
-                      '0%'
-                  }
+                  {(() => {
+                    const engagement = (brandSummary?.total_engagement ?? safeData.total_engagement) || 0;
+                    if (engagement > 1000000) {
+                      return `${(engagement / 1000000).toFixed(1)}M`;
+                    } else if (engagement > 1000) {
+                      return `${(engagement / 1000).toFixed(1)}K`;
+                    } else {
+                      return engagement.toLocaleString();
+                    }
+                  })()}
                 </p>
               </div>
               <div className="p-2 rounded-lg bg-green-100">
@@ -617,16 +640,16 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Reach</p>
+                <p className="text-sm text-muted-foreground">Number of Reach</p>
                 <p className="text-2xl font-bold">
                   {(() => {
-                    const engagement = (brandSummary?.total_engagement ?? safeData.total_engagement) || 0;
-                    if (engagement > 1000000) {
-                      return `${(engagement / 1000000).toFixed(1)}M`;
-                    } else if (engagement > 1000) {
-                      return `${(engagement / 1000).toFixed(1)}K`;
+                    const avgEngagement = (brandSummary?.avg_engagement_per_post ?? safeData.avg_engagement_per_post) || 0;
+                    if (avgEngagement > 1000000) {
+                      return `${(avgEngagement / 1000000).toFixed(1)}M`;
+                    } else if (avgEngagement > 1000) {
+                      return `${(avgEngagement / 1000).toFixed(1)}K`;
                     } else {
-                      return engagement.toLocaleString();
+                      return avgEngagement.toLocaleString();
                     }
                   })()}
                 </p>
@@ -895,6 +918,42 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                                   </div>
                                   
                                   <div className="space-y-3">
+                                    {/* Engagement Metrics */}
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Total Engagement:</span>
+                                        <span className="font-medium">{topic.engagement?.toLocaleString() || 0}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Likes:</span>
+                                        <span className="font-medium">{topic.likes?.toLocaleString() || 0}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Comments:</span>
+                                        <span className="font-medium">{topic.comments?.toLocaleString() || 0}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Shares:</span>
+                                        <span className="font-medium">{topic.shares?.toLocaleString() || 0}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Sentiment Distribution */}
+                                    <div className="grid grid-cols-3 gap-2 text-xs">
+                                      <div className="text-center">
+                                        <div className="text-green-600 font-medium">{topic.positive || 0}</div>
+                                        <div className="text-gray-500">Positive</div>
+                                      </div>
+                                      <div className="text-center">
+                                        <div className="text-orange-600 font-medium">{topic.neutral || 0}</div>
+                                        <div className="text-gray-500">Neutral</div>
+                                      </div>
+                                      <div className="text-center">
+                                        <div className="text-red-600 font-medium">{topic.negative || 0}</div>
+                                        <div className="text-gray-500">Negative</div>
+                                      </div>
+                                    </div>
+                                    
                                     {/* Relevance */}
                                     <div className="space-y-2">
                                       <div className="flex justify-between text-xs">
@@ -958,53 +1017,28 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         <div className="text-lg font-semibold text-gray-800 mb-4">Emotional Analysis</div>
                         <div className="flex justify-center items-center" style={{ width: '100%', height: '500px' }}>
                           {(() => {
-                            const chartData = [
-                              {
-                                emotion: 'Joy',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'joy')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Anger',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'anger')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Fear',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'fear')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Sadness',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'sadness')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Surprise',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'surprise')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Trust',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'trust')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Anticipation',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'anticipation')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Disgust',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'disgust')?.percentage || 0,
-                                fullMark: 100
-                              },
-                              {
-                                emotion: 'Neutral',
-                                value: emotionsData.emotions.find((e: any) => e.emotion === 'neutral')?.percentage || 0,
-                                fullMark: 100
-                              }
-                            ];
+                            // Dynamic chart data based on API response emotions
+                            const chartData = emotionsData.emotions.map((emotion: any) => ({
+                              emotion: emotion.emotion.charAt(0).toUpperCase() + emotion.emotion.slice(1),
+                              value: emotion.percentage,
+                              fullMark: 100,
+                              count: emotion.count
+                            }));
+                            
+                            // If no emotions data, show empty chart with default emotions
+                            if (chartData.length === 0) {
+                              chartData.push(
+                                { emotion: 'Joy', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Anger', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Fear', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Sadness', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Surprise', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Trust', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Anticipation', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Disgust', value: 0, fullMark: 100, count: 0 },
+                                { emotion: 'Neutral', value: 0, fullMark: 100, count: 0 }
+                              );
+                            }
                             
                             // Calculate dynamic maximum axis value based on highest emotion
                             const maxEmotionValue = Math.max(...chartData.map(d => d.value));
@@ -1038,12 +1072,35 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       {/* Additional info */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-sm text-gray-600">Total Analyzed</div>
-                          <div className="text-lg font-semibold">{emotionsData.total_analyzed}</div>
+                          <div className="text-sm text-gray-600">Total Emotions</div>
+                          <div className="text-lg font-semibold">{emotionsData.total_emotions || 0}</div>
                         </div>
                         <div className="text-center p-3 bg-gray-50 rounded-lg">
                           <div className="text-sm text-gray-600">Dominant Emotion</div>
-                          <div className="text-lg font-semibold capitalize">{emotionsData.dominant_emotion}</div>
+                          <div className="text-lg font-semibold capitalize">
+                            {emotionsData.emotions && emotionsData.emotions.length > 0 
+                              ? emotionsData.emotions[0].emotion 
+                              : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Emotions List */}
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-3">Emotion Breakdown</h3>
+                        <div className="space-y-3">
+                          {emotionsData.emotions && emotionsData.emotions.map((emotion: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                                <span className="font-medium capitalize">{emotion.emotion}</span>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">{emotion.count} posts</div>
+                                <div className="text-sm text-gray-600">{emotion.percentage}%</div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -1067,20 +1124,66 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                     </CardHeader>
                     <CardContent className="space-y-6">
                       
+                      {/* Platform Distribution */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">Platform Distribution</h3>
+                        <div className="space-y-3">
+                          {demographicsData && demographicsData.demographics && demographicsData.demographics.length > 0 ? (
+                            demographicsData.demographics
+                              .filter((item: any) => item.category === 'platform')
+                              .map((platform: any, index: number) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="font-medium capitalize">{platform.value}</span>
+                                    <span className="text-gray-600">{platform.percentage}%</span>
+                                  </div>
+                                  <Progress value={platform.percentage} className="h-2" />
+                                </div>
+                              ))
+                          ) : (
+                            <div className="text-center text-muted-foreground">No platform data available</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Engagement Levels */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">Engagement Levels</h3>
+                        <div className="space-y-3">
+                          {demographicsData && demographicsData.demographics && demographicsData.demographics.length > 0 ? (
+                            demographicsData.demographics
+                              .filter((item: any) => item.category === 'engagement')
+                              .map((engagement: any, index: number) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="font-medium capitalize">{engagement.value}</span>
+                                    <span className="text-gray-600">{engagement.percentage}%</span>
+                                  </div>
+                                  <Progress value={engagement.percentage} className="h-2" />
+                                </div>
+                              ))
+                          ) : (
+                            <div className="text-center text-muted-foreground">No engagement data available</div>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Age Groups */}
                       <div>
                         <h3 className="text-lg font-semibold mb-3">Age Groups</h3>
                         <div className="space-y-3">
-                          {demographicsData && demographicsData.age_groups && demographicsData.age_groups.length > 0 ? (
-                            demographicsData.age_groups.map((age: any, index: number) => (
-                              <div key={index} className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span className="font-medium">{age.age_group}</span>
-                                  <span className="text-gray-600">{age.percentage}%</span>
+                          {demographicsData && demographicsData.demographics && demographicsData.demographics.length > 0 ? (
+                            demographicsData.demographics
+                              .filter((item: any) => item.category === 'age')
+                              .map((age: any, index: number) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="font-medium">{age.value}</span>
+                                    <span className="text-gray-600">{age.percentage}%</span>
+                                  </div>
+                                  <Progress value={age.percentage} className="h-2" />
                                 </div>
-                                <Progress value={age.percentage} className="h-2" />
-                              </div>
-                            ))
+                              ))
                           ) : (
                             <div className="text-center text-muted-foreground">No age data available</div>
                           )}
@@ -1091,16 +1194,18 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       <div>
                         <h3 className="text-lg font-semibold mb-3">Gender Distribution</h3>
                         <div className="space-y-3">
-                          {demographicsData && demographicsData.genders && demographicsData.genders.length > 0 ? (
-                            demographicsData.genders.map((gender: any, index: number) => (
-                              <div key={index} className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span className="font-medium capitalize">{gender.gender}</span>
-                                  <span className="text-gray-600">{gender.percentage}%</span>
+                          {demographicsData && demographicsData.demographics && demographicsData.demographics.length > 0 ? (
+                            demographicsData.demographics
+                              .filter((item: any) => item.category === 'gender')
+                              .map((gender: any, index: number) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="font-medium capitalize">{gender.value}</span>
+                                    <span className="text-gray-600">{gender.percentage}%</span>
+                                  </div>
+                                  <Progress value={gender.percentage} className="h-2" />
                                 </div>
-                                <Progress value={gender.percentage} className="h-2" />
-                              </div>
-                            ))
+                              ))
                           ) : (
                             <div className="text-center text-muted-foreground">No gender data available</div>
                           )}
@@ -1117,16 +1222,19 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {demographicsData && demographicsData.top_locations && demographicsData.top_locations.length > 0 ? (
-                        demographicsData.top_locations.slice(0, 6).map((location: any, index: number) => (
-                          <div key={index} className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="font-medium">{location.location}</span>
-                              <span className="text-gray-600">{location.percentage}%</span>
+                      {demographicsData && demographicsData.demographics && demographicsData.demographics.length > 0 ? (
+                        demographicsData.demographics
+                          .filter((item: any) => item.category === 'location')
+                          .slice(0, 6)
+                          .map((location: any, index: number) => (
+                            <div key={index} className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="font-medium">{location.value}</span>
+                                <span className="text-gray-600">{location.percentage}%</span>
+                              </div>
+                              <Progress value={location.percentage} className="h-2" />
                             </div>
-                            <Progress value={location.percentage} className="h-2" />
-                          </div>
-                        ))
+                          ))
                       ) : (
                         <div className="text-center text-muted-foreground">No location data available</div>
                       )}
@@ -1202,7 +1310,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         <div className="text-sm text-gray-600 mb-1">Total Reach</div>
                         <div className="text-2xl font-bold text-blue-600">
                           {(() => {
-                            const reach = performanceData?.performance_metrics?.estimated_reach || performanceData?.estimated_reach || 0;
+                            const reach = performanceData?.overall_metrics?.total_views || performanceData?.total_views || 0;
                             if (reach >= 1000000) {
                               return `${(reach / 1000000).toFixed(1)}M`;
                             } else if (reach >= 1000) {
@@ -1217,7 +1325,7 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         <div className="text-sm text-gray-600 mb-1">Impressions</div>
                         <div className="text-2xl font-bold text-green-600">
                           {(() => {
-                            const impressions = performanceData?.performance_metrics?.total_engagement || performanceData?.total_engagement || 0;
+                            const impressions = performanceData?.overall_metrics?.total_engagement || performanceData?.total_engagement || 0;
                             if (impressions >= 1000000) {
                               return `${(impressions / 1000000).toFixed(1)}M`;
                             } else if (impressions >= 1000) {
@@ -1231,13 +1339,23 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       <div className="p-4 bg-orange-50 rounded-lg text-center">
                         <div className="text-sm text-gray-600 mb-1">Share Rate</div>
                         <div className="text-2xl font-bold text-orange-600">
-                          {performanceData ? `${Math.round((performanceData.performance_metrics?.engagement_rate || performanceData?.engagement_rate || 0) * 0.34)}%` : '3.4%'}
+                          {(() => {
+                            const totalShares = performanceData?.overall_metrics?.total_shares || 0;
+                            const totalViews = performanceData?.overall_metrics?.total_views || 0;
+                            const shareRate = totalViews > 0 ? (totalShares / totalViews) * 100 : 0;
+                            return `${shareRate.toFixed(2)}%`;
+                          })()}
                         </div>
                       </div>
                       <div className="p-4 bg-purple-50 rounded-lg text-center">
                         <div className="text-sm text-gray-600 mb-1">Click Rate</div>
                         <div className="text-2xl font-bold text-purple-600">
-                          {performanceData ? `${Math.round((performanceData.performance_metrics?.engagement_rate || performanceData?.engagement_rate || 0) * 0.28)}%` : '2.8%'}
+                          {(() => {
+                            const totalEngagement = performanceData?.overall_metrics?.total_engagement || 0;
+                            const totalViews = performanceData?.overall_metrics?.total_views || 0;
+                            const clickRate = totalViews > 0 ? (totalEngagement / totalViews) * 100 : 0;
+                            return `${Math.min(parseFloat(clickRate.toFixed(2)), 100)}%`;
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -1251,38 +1369,107 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Impressions</span>
-                          <span>{performanceData?.performance_metrics?.views?.toLocaleString() || performanceData?.views?.toLocaleString() || '0'}</span>
-                        </div>
-                        <Progress value={100} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Engagement</span>
-                          <span>{performanceData?.performance_metrics?.total_engagement?.toLocaleString() || performanceData?.total_engagement?.toLocaleString() || '0'}</span>
-                        </div>
-                        <Progress value={80} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Clicks</span>
-                          <span>{performanceData?.performance_metrics?.estimated_reach ? Math.round(performanceData.performance_metrics.estimated_reach * 0.3).toLocaleString() : performanceData?.estimated_reach ? Math.round(performanceData.estimated_reach * 0.3).toLocaleString() : '0'}</span>
-                        </div>
-                        <Progress value={30} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Conversions</span>
-                          <span>{performanceData?.performance_metrics?.conversion_rate ? Math.round(performanceData.performance_metrics.conversion_rate).toLocaleString() : performanceData?.conversion_rate ? Math.round(performanceData.conversion_rate).toLocaleString() : '0'}</span>
-                        </div>
-                        <Progress value={10} className="h-2" />
-                      </div>
+                      {(() => {
+                        const totalEngagement = performanceData?.overall_metrics?.total_engagement || 0;
+                        const totalViews = performanceData?.overall_metrics?.total_views || 0;
+                        const clicks = totalViews ? Math.round(totalViews * 0.3) : 0;
+                        const conversions = totalViews ? Math.round(totalViews * 0.1) : 0;
+                        
+                        // Calculate progress percentages based on actual values
+                        const engagementProgress = totalEngagement > 0 ? Math.min((totalEngagement / 50000) * 100, 100) : 0;
+                        const clicksProgress = totalViews > 0 ? Math.min((clicks / 1000) * 100, 100) : 0;
+                        const conversionsProgress = totalViews > 0 ? Math.min((conversions / 100) * 100, 100) : 0;
+                        
+                        return (
+                          <>
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span>Engagement</span>
+                                <span>{totalEngagement.toLocaleString()}</span>
+                              </div>
+                              <Progress value={engagementProgress} className="h-2" />
+                            </div>
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span>Clicks</span>
+                                <span>{clicks.toLocaleString()}</span>
+                              </div>
+                              <Progress value={clicksProgress} className="h-2" />
+                            </div>
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span>Conversions</span>
+                                <span>{conversions.toLocaleString()}</span>
+                              </div>
+                              <Progress value={conversionsProgress} className="h-2" />
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
               </div>
+              
+              {/* Platform Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Platform Performance Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {performanceData?.platform_breakdown && performanceData.platform_breakdown.length > 0 ? (
+                      performanceData.platform_breakdown.map((platform: any, index: number) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-lg font-semibold capitalize">{platform.platform}</h3>
+                            <span className="text-sm text-gray-600">{platform.posts} posts</span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">Likes</div>
+                              <div className="text-lg font-semibold">{platform.total_likes?.toLocaleString() || '0'}</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">Comments</div>
+                              <div className="text-lg font-semibold">{platform.total_comments?.toLocaleString() || '0'}</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">Shares</div>
+                              <div className="text-lg font-semibold">{platform.total_shares?.toLocaleString() || '0'}</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">Views</div>
+                              <div className="text-lg font-semibold">{platform.total_views?.toLocaleString() || '0'}</div>
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span>Engagement Rate</span>
+                              <span>{(() => {
+                                const platformEngagement = (platform.total_likes || 0) + (platform.total_comments || 0) + (platform.total_shares || 0);
+                                const platformViews = platform.total_views || 0;
+                                const engagementRate = platformViews > 0 ? (platformEngagement / platformViews) * 100 : 0;
+                                return `${engagementRate.toFixed(2)}%`;
+                              })()}</span>
+                            </div>
+                            <Progress value={(() => {
+                              const platformEngagement = (platform.total_likes || 0) + (platform.total_comments || 0) + (platform.total_shares || 0);
+                              const platformViews = platform.total_views || 0;
+                              const engagementRate = platformViews > 0 ? (platformEngagement / platformViews) * 100 : 0;
+                              return Math.min(engagementRate, 100);
+                            })()} className="h-2" />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No platform breakdown data available
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
           </Tabs>

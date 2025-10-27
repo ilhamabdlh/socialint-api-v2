@@ -3,14 +3,15 @@ import concurrent.futures
 import time
 from typing import List, Tuple
 from app.config.settings import settings
+from app.config.env_config import env_config
 
 # Initialize Gemini
-genai.configure(api_key=settings.google_api_key)
-gemini_model = genai.GenerativeModel(settings.gemini_model)
+genai.configure(api_key=env_config.GEMINI_API_KEY or settings.google_api_key)
+gemini_model = genai.GenerativeModel(env_config.AI_MODEL or settings.gemini_model)
 
 class AIAnalysisService:
     def __init__(self):
-        self.max_workers = settings.max_workers
+        self.max_workers = env_config.MAX_WORKERS or settings.max_workers
         self.model = gemini_model
     
     def language_based_cleansing(self, batch_data: List[str]) -> List[str]:

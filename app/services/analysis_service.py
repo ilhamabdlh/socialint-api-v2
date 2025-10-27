@@ -111,9 +111,9 @@ class AnalysisService:
             topics = self.ai_service.topic_analysis(batch, self.topics_global)
             all_topics.extend(topics)
         
-        # Add results to dataframe
-        df['sentiment'] = all_sentiments
-        df['topic'] = all_topics
+        # Add results to dataframe with NaN handling
+        df['sentiment'] = [s if pd.notna(s) and s in ['Positive', 'Negative', 'Neutral'] else 'Neutral' for s in all_sentiments]
+        df['topic'] = [t if pd.notna(t) and isinstance(t, str) and t.strip() else 'general' for t in all_topics]
         
         return df
     
@@ -147,7 +147,8 @@ class AnalysisService:
         
         # Calculate stats
         sentiment_dist = calculate_sentiment_distribution(df['sentiment'].tolist())
-        topics_found = df['topic'].unique().tolist()
+        # Filter out NaN values from topics
+        topics_found = df['topic'].dropna().unique().tolist()
         
         # Save results
         import os

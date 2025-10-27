@@ -1,5 +1,5 @@
 from beanie import Document, Indexed, Link
-from pydantic import Field
+from pydantic import Field, BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -46,6 +46,15 @@ class CampaignType(str, Enum):
     INFLUENCER = "influencer"
     OTHER = "other"
 
+# New Models for Platform URLs
+class PlatformURL(BaseModel):
+    """Platform URL model - represents a platform with its URL"""
+    platform: PlatformType
+    post_url: str
+    
+    class Config:
+        use_enum_values = True
+
 # Database Models
 class Brand(Document):
     """Brand model - represents a brand being analyzed"""
@@ -64,7 +73,8 @@ class Brand(Document):
     
     # New fields for content analysis
     created_from: CreatedFromType = CreatedFromType.BRAND  # Track where brand was created from
-    postUrls: List[str] = []  # Platform URLs for this brand
+    platform_urls: List[PlatformURL] = []  # Platform URLs for this brand (new structure)
+    postUrls: List[str] = []  # Legacy field - kept for backward compatibility
     
     class Settings:
         name = "brands"
@@ -339,7 +349,10 @@ class Campaign(Document):
     target_audiences: List[str] = []  # e.g., ["Tech Enthusiasts", "Truck Owners", "EV Adopters"]
     platforms: List[PlatformType] = []
     
-    # Post URLs to track
+    # Platform URLs to track (new structure)
+    platform_urls: List[PlatformURL] = []
+    
+    # Post URLs to track (legacy field - kept for backward compatibility)
     post_urls: List[Link[PostURL]] = []
     
     # Timeline

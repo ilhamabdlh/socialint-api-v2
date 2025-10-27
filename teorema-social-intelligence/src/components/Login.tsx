@@ -152,7 +152,7 @@ export function Login({ onLogin }: LoginProps) {
             marginBottom: '24px',
             color: 'white' 
           }}>
-            Teorema Intelligence! 👋
+            Teorema Intelligence!
           </h1>
           <p style={{ 
             fontSize: '18px', 

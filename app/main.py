@@ -4,6 +4,7 @@ import warnings
 
 from app.api.routes import router
 from app.config.settings import settings
+from app.config.env_config import env_config
 from app.database.mongodb import connect_to_mongodb, close_mongodb_connection
 
 warnings.filterwarnings('ignore')
@@ -20,7 +21,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=env_config.CORS_ORIGINS,  # Use environment config
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,13 +31,13 @@ app.add_middleware(
 from app.api.results_routes import router as results_router
 from app.api.campaign_routes import router as campaign_router
 from app.api.brand_routes import router as brand_router
-from app.api.content_routes import router as content_router
+# from app.api.content_routes import router as content_router
 from app.api.scraper_routes import router as scraper_router
 app.include_router(router, prefix="/api/v1", tags=["analysis"])
 app.include_router(results_router, prefix="/api/v1/results", tags=["results"])
 app.include_router(campaign_router, prefix="/api/v1", tags=["campaigns"])
 app.include_router(brand_router, prefix="/api/v1", tags=["brands"])
-app.include_router(content_router, prefix="/api/v1", tags=["contents"])
+# app.include_router(content_router, prefix="/api/v1", tags=["contents"])
 app.include_router(scraper_router, prefix="/api/v1", tags=["scraping"])
 
 @app.on_event("startup")

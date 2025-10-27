@@ -5,6 +5,7 @@ import pytz
 import asyncio
 
 from app.services.campaign_service import campaign_service
+from app.config.env_config import env_config
 
 class SchedulerService:
     """
@@ -52,19 +53,23 @@ class SchedulerService:
             print("⚠️  Scheduler is already running")
             return
         
-        # Schedule daily analysis at midnight UTC
+        # Schedule daily analysis using environment config
         self.scheduler.add_job(
             self.analyze_active_campaigns,
-            trigger=CronTrigger(hour=0, minute=0, timezone=pytz.UTC),
+            trigger=CronTrigger(
+                hour=env_config.DAILY_ANALYSIS_HOUR, 
+                minute=env_config.DAILY_ANALYSIS_MINUTE, 
+                timezone=pytz.UTC
+            ),
             id="daily_campaign_analysis",
             name="Daily Campaign Analysis",
             replace_existing=True
         )
         
-        # Schedule status check every 6 hours
+        # Schedule status check using environment config
         self.scheduler.add_job(
             campaign_service.check_and_update_campaign_status,
-            trigger=CronTrigger(hour="*/6", timezone=pytz.UTC),
+            trigger=CronTrigger(hour=f"*/{env_config.STATUS_CHECK_INTERVAL_HOURS}", timezone=pytz.UTC),
             id="campaign_status_check",
             name="Campaign Status Check",
             replace_existing=True

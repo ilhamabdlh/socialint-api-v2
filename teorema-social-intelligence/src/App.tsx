@@ -155,19 +155,19 @@ export default function App() {
       {/* Main Dashboard */}
       <div className="container mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-fit lg:grid-cols-3">
-            <TabsTrigger value="campaign-analysis" className="flex items-center space-x-2">
-              <Target className="h-4 w-4" />
-              <span>Campaign Analysis</span>
+          <TabsList className="grid w-full grid-cols-2 lg:w-fit lg:grid-cols-2 p-0.5">
+            <TabsTrigger value="campaign-analysis" className="flex items-center space-x-1.5 px-2 py-1.5">
+              <Target className="h-3.5 w-3.5" />
+              <span className="text-sm">Campaign Analysis</span>
             </TabsTrigger>
-            <TabsTrigger value="brand-analysis" className="flex items-center space-x-2">
-              <Building2 className="h-4 w-4" />
-              <span>Brand Analysis</span>
+            <TabsTrigger value="brand-analysis" className="flex items-center space-x-1.5 px-2 py-1.5">
+              <Building2 className="h-3.5 w-3.5" />
+              <span className="text-sm">Brand Analysis</span>
             </TabsTrigger>
-            <TabsTrigger value="content-analysis" className="flex items-center space-x-2">
+            {/* <TabsTrigger value="content-analysis" className="flex items-center space-x-2">
               <FileText className="h-4 w-4" />
               <span>Content Analysis</span>
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="campaign-analysis" className="space-y-6">
@@ -228,7 +228,7 @@ export default function App() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="content-analysis" className="space-y-6">
+          {/* <TabsContent value="content-analysis" className="space-y-6">
             <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -255,7 +255,7 @@ export default function App() {
                 )}
               </TabsContent>
             </Tabs>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
 

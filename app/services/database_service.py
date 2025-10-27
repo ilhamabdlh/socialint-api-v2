@@ -40,7 +40,17 @@ class DatabaseService:
     
     async def get_brand(self, name: str) -> Optional[Brand]:
         """Get brand by name"""
-        return await Brand.find_one(Brand.name == name)
+        try:
+            return await Brand.find_one({'name': name})
+        except Exception as e:
+            print(f"Error in get_brand: {e}")
+            # Fallback to direct MongoDB query
+            from app.database.mongodb import get_database
+            db = await get_database()
+            brand_data = await db.brands.find_one({'name': name})
+            if brand_data:
+                return Brand(**brand_data)
+            return None
     
     async def get_brand_by_id(self, brand_id: str) -> Optional[Brand]:
         """Get brand by ObjectID"""
@@ -54,7 +64,17 @@ class DatabaseService:
             print(f"Error in get_brand_by_id: {str(e)}")
             import traceback
             print(f"Traceback: {traceback.format_exc()}")
-            raise
+            # Fallback to direct MongoDB query
+            try:
+                from app.database.mongodb import get_database
+                from bson import ObjectId
+                db = await get_database()
+                brand_data = await db.brands.find_one({'_id': ObjectId(brand_id)})
+                if brand_data:
+                    return Brand(**brand_data)
+            except Exception as e2:
+                print(f"Fallback error: {e2}")
+            return None
     
     async def list_brands(self) -> List[Brand]:
         """List all brands"""

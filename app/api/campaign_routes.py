@@ -9,6 +9,7 @@ from app.models.database import (
     CampaignMetrics, 
     Brand, 
     PostURL,
+    PlatformURL,
     CampaignStatus,
     CampaignType,
     PlatformType,
@@ -16,6 +17,31 @@ from app.models.database import (
 )
 
 router = APIRouter(prefix="/campaigns", tags=["Campaign Management"])
+
+# ============= UTILITY FUNCTIONS =============
+
+def detect_platform_from_url(url: str) -> Optional[PlatformType]:
+    """
+    Auto-detect platform from URL pattern
+    
+    Args:
+        url: URL to analyze
+        
+    Returns:
+        PlatformType if detected, None if not recognized
+    """
+    url_lower = url.lower()
+    
+    if 'tiktok.com' in url_lower or 'vt.tiktok.com' in url_lower:
+        return PlatformType.TIKTOK
+    elif 'instagram.com' in url_lower:
+        return PlatformType.INSTAGRAM
+    elif 'twitter.com' in url_lower or 'x.com' in url_lower:
+        return PlatformType.TWITTER
+    elif 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+        return PlatformType.YOUTUBE
+    else:
+        return None
 
 # ============= REQUEST/RESPONSE SCHEMAS =============
 
@@ -35,7 +61,8 @@ class CampaignCreate(BaseModel):
     keywords: List[str] = []
     target_audiences: List[str] = []
     platforms: List[PlatformType] = []
-    post_urls: List[PostURLCreate] = []
+    platform_urls: List[PlatformURL] = []  # New structure
+    post_urls: List[PostURLCreate] = []  # Legacy structure for backward compatibility
     
     # Timeline
     start_date: datetime
@@ -174,17 +201,47 @@ async def create_campaign(campaign: CampaignCreate):
             brand.updated_at = datetime.now(pytz.UTC)
             await brand.save()
         
-        # Create post URLs
+        # Create post URLs (legacy structure) with auto-detection
         post_url_docs = []
         for url_data in campaign.post_urls:
+            # Auto-detect platform from URL if platform is incorrect
+            detected_platform = detect_platform_from_url(url_data.url)
+            final_platform = detected_platform if detected_platform else url_data.platform
+            
+            # Ensure we have a valid platform
+            if not final_platform:
+                print(f"⚠️  Warning: Could not detect platform for URL: {url_data.url}, using default 'tiktok'")
+                final_platform = PlatformType.TIKTOK
+            
             post_url = PostURL(
                 url=url_data.url,
-                platform=url_data.platform,
+                platform=final_platform,
                 title=url_data.title,
                 description=url_data.description
             )
             await post_url.insert()
             post_url_docs.append(post_url)
+        
+        # Convert platform_urls to PlatformURL objects if provided
+        platform_urls = []
+        if campaign.platform_urls:
+            platform_urls = campaign.platform_urls
+        elif campaign.post_urls:
+            # Convert legacy post_urls to platform_urls structure with auto-detection
+            for url_data in campaign.post_urls:
+                # Auto-detect platform from URL if platform is incorrect
+                detected_platform = detect_platform_from_url(url_data.url)
+                final_platform = detected_platform if detected_platform else url_data.platform
+                
+                # Ensure we have a valid platform
+                if not final_platform:
+                    print(f"⚠️  Warning: Could not detect platform for URL: {url_data.url}, using default 'tiktok'")
+                    final_platform = PlatformType.TIKTOK
+                
+                platform_urls.append(PlatformURL(
+                    platform=final_platform,
+                    post_url=url_data.url
+                ))
         
         # Calculate next analysis time
         next_analysis = None
@@ -208,7 +265,8 @@ async def create_campaign(campaign: CampaignCreate):
             keywords=campaign.keywords,
             target_audiences=campaign.target_audiences,
             platforms=campaign.platforms,
-            post_urls=post_url_docs,
+            platform_urls=platform_urls,  # New structure
+            post_urls=post_url_docs,  # Legacy structure for backward compatibility
             start_date=campaign.start_date,
             end_date=campaign.end_date,
             auto_analysis_enabled=campaign.auto_analysis_enabled,
@@ -277,9 +335,26 @@ async def list_campaigns(
             else:
                 campaigns = []
         else:
-            campaigns = await Campaign.find(
-                *[getattr(Campaign, k) == v for k, v in query.items()]
-            ).skip(skip).limit(limit).to_list()
+            try:
+                campaigns = await Campaign.find(
+                    *[getattr(Campaign, k) == v for k, v in query.items()]
+                ).skip(skip).limit(limit).to_list()
+            except Exception as e:
+                print(f"Error fetching campaigns: {str(e)}")
+                # Try to fetch campaigns without validation
+                campaigns = []
+                try:
+                    # Use raw MongoDB query to bypass validation
+                    from app.database.mongodb import get_database
+                    db = await get_database()
+                    collection = db.campaigns
+                    raw_campaigns = await collection.find(query).skip(skip).limit(limit).to_list(length=limit)
+                    print(f"Found {len(raw_campaigns)} raw campaigns")
+                    # Skip campaigns with invalid data for now
+                    campaigns = []
+                except Exception as raw_e:
+                    print(f"Error with raw query: {str(raw_e)}")
+                    campaigns = []
         
         response = []
         for campaign in campaigns:
@@ -288,14 +363,32 @@ async def list_campaigns(
                 brand = await campaign.brand.fetch()
                 brand_name = brand.name if brand and hasattr(brand, 'name') else "Unknown Brand"
                 
+                # Skip campaigns with invalid platform_urls data
+                if hasattr(campaign, 'platform_urls') and campaign.platform_urls:
+                    for platform_url in campaign.platform_urls:
+                        if hasattr(platform_url, 'platform'):
+                            try:
+                                # Try to access platform value to validate
+                                _ = platform_url.platform.value if hasattr(platform_url.platform, 'value') else str(platform_url.platform)
+                            except:
+                                print(f"Warning: Skipping campaign {campaign.campaign_name} due to invalid platform_urls data")
+                                continue
+                
                 # Convert post_urls to dict format
                 post_urls_data = []
                 for post_url_link in campaign.post_urls:
                     try:
                         post_url = await post_url_link.fetch()
+                        # Handle invalid platform values
+                        try:
+                            platform_value = post_url.platform.value if hasattr(post_url.platform, 'value') else str(post_url.platform)
+                        except:
+                            print(f"Warning: Invalid platform value for post_url {post_url.url}: {post_url.platform}")
+                            platform_value = "tiktok"  # Default fallback
+                        
                         post_urls_data.append({
                             "url": post_url.url,
-                            "platform": post_url.platform.value,
+                            "platform": platform_value,
                             "title": post_url.title,
                             "description": post_url.description
                         })
@@ -428,9 +521,16 @@ async def get_campaign(campaign_name: str):
         post_urls_data = []
         for post_url_link in campaign.post_urls:
             post_url = await post_url_link.fetch()
+            # Handle invalid platform values
+            try:
+                platform_value = post_url.platform.value if hasattr(post_url.platform, 'value') else str(post_url.platform)
+            except:
+                print(f"Warning: Invalid platform value for post_url {post_url.url}: {post_url.platform}")
+                platform_value = "tiktok"  # Default fallback
+            
             post_urls_data.append({
                 "url": post_url.url,
-                "platform": post_url.platform.value,
+                "platform": platform_value,
                 "title": post_url.title,
                 "description": post_url.description
             })

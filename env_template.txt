@@ -1,0 +1,137 @@
+# =============================================================================
+# SOCIAL INTELLIGENCE API - ENVIRONMENT CONFIGURATION TEMPLATE
+# =============================================================================
+# Copy this file to .env and update the values
+
+# =============================================================================
+# DATABASE CONFIGURATION
+# =============================================================================
+MONGODB_URL=mongodb://localhost:27017
+MONGODB_DATABASE=socialint
+
+# =============================================================================
+# API CREDENTIALS
+# =============================================================================
+# Apify API Token for social media scraping
+APIFY_API_TOKEN=your_apify_token_here
+
+# Gemini AI API Key for sentiment analysis
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# =============================================================================
+# SCRAPING LIMITS & CONFIGURATION
+# =============================================================================
+# Default max posts per platform
+DEFAULT_MAX_POSTS_PER_PLATFORM=100
+
+# TikTok scraping limits
+TIKTOK_MAX_POSTS=100
+TIKTOK_RESULTS_PER_PAGE=100
+
+# Instagram scraping limits
+INSTAGRAM_MAX_POSTS=100
+INSTAGRAM_RESULTS_LIMIT=100
+INSTAGRAM_SEARCH_LIMIT=100
+
+# Twitter scraping limits
+TWITTER_MAX_POSTS=100
+TWITTER_MAX_ITEMS=100
+
+# YouTube scraping limits
+YOUTUBE_MAX_POSTS=100
+YOUTUBE_MAX_RESULTS=100
+
+# =============================================================================
+# ANALYSIS CONFIGURATION
+# =============================================================================
+# AI Model configuration
+AI_MODEL=gemini-2.0-flash
+MAX_WORKERS=20
+BATCH_SIZE=100
+
+# Analysis limits
+MAX_POSTS_FOR_ANALYSIS=1000
+SENTIMENT_ANALYSIS_BATCH_SIZE=50
+TOPIC_ANALYSIS_BATCH_SIZE=100
+
+# =============================================================================
+# SCHEDULER CONFIGURATION
+# =============================================================================
+# Daily analysis schedule (UTC)
+DAILY_ANALYSIS_HOUR=0
+DAILY_ANALYSIS_MINUTE=0
+
+# Status check interval (hours)
+STATUS_CHECK_INTERVAL_HOURS=6
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+# Server configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=1
+
+# CORS configuration
+CORS_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+LOG_LEVEL=INFO
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+
+# =============================================================================
+# CACHE CONFIGURATION
+# =============================================================================
+# Enable/disable caching
+ENABLE_CACHE=true
+CACHE_TTL_SECONDS=3600
+
+# =============================================================================
+# RATE LIMITING
+# =============================================================================
+# Rate limiting configuration
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
+RATE_LIMIT_BURST=10
+
+# =============================================================================
+# DEVELOPMENT CONFIGURATION
+# =============================================================================
+# Development mode
+DEBUG=false
+RELOAD=true
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+# JWT Secret for authentication
+JWT_SECRET_KEY=your_jwt_secret_key_here
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# =============================================================================
+# NOTIFICATION CONFIGURATION
+# =============================================================================
+# Email configuration (optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_USE_TLS=true
+
+# =============================================================================
+# MONITORING CONFIGURATION
+# =============================================================================
+# Health check configuration
+HEALTH_CHECK_INTERVAL_SECONDS=30
+HEALTH_CHECK_TIMEOUT_SECONDS=10
+
+# =============================================================================
+# DATA RETENTION
+# =============================================================================
+# Data retention policy (days)
+DATA_RETENTION_DAYS=90
+ANALYSIS_RETENTION_DAYS=30
+SCRAPED_DATA_RETENTION_DAYS=7
+

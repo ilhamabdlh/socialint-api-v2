@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.services.ai_service import AIAnalysisService
 from app.services.database_service import db_service
+from app.config.env_config import env_config
 from app.utils.data_helpers import (
     remove_duplicates,
     explicit_keywords_cleansing,
@@ -164,16 +165,16 @@ class AnalysisServiceV2:
             demographics = self.ai_service.extract_demographics(batch)
             all_demographics.extend(demographics)
         
-        # Add results to dataframe
-        df['sentiment'] = all_sentiments
-        df['topic'] = normalized_topics  # Use normalized topics
-        df['emotion'] = all_emotions
+        # Add results to dataframe with NaN handling
+        df['sentiment'] = [s if pd.notna(s) and s in ['Positive', 'Negative', 'Neutral'] else 'Neutral' for s in all_sentiments]
+        df['topic'] = [t if pd.notna(t) and isinstance(t, str) and t.strip() else 'general' for t in normalized_topics]
+        df['emotion'] = [e if pd.notna(e) and isinstance(e, str) and e.strip() else 'neutral' for e in all_emotions]
         
         # Consolidate demographics to remove duplicates
         consolidated_demo = consolidate_demographics(all_demographics)
-        df['age_group'] = [d.get('age_group', 'unknown') for d in all_demographics]
-        df['gender'] = [d.get('gender', 'unknown') for d in all_demographics]
-        df['location_hint'] = [d.get('location_hint', 'unknown') for d in all_demographics]
+        df['age_group'] = [d.get('age_group', 'unknown') if pd.notna(d.get('age_group', 'unknown')) else 'unknown' for d in all_demographics]
+        df['gender'] = [d.get('gender', 'unknown') if pd.notna(d.get('gender', 'unknown')) else 'unknown' for d in all_demographics]
+        df['location_hint'] = [d.get('location_hint', 'unknown') if pd.notna(d.get('location_hint', 'unknown')) else 'unknown' for d in all_demographics]
         
         # Analyze engagement patterns
         engagement_patterns = analyze_engagement_patterns(df)
@@ -200,7 +201,7 @@ class AnalysisServiceV2:
             for idx, row in df.iterrows():
                 try:
                     # Prepare post data
-                    # Extract posted_at from TikTok createTime field
+                    # Extract posted_at from various timestamp fields
                     posted_at = None
                     if 'createTimeISO' in row and pd.notna(row.get('createTimeISO')):
                         try:
@@ -213,16 +214,31 @@ class AnalysisServiceV2:
                             posted_at = pd.to_datetime(row['createTime'], unit='s')
                         except:
                             pass
+                    elif 'timestamp' in row and pd.notna(row.get('timestamp')):
+                        try:
+                            # Instagram timestamp field
+                            posted_at = pd.to_datetime(row['timestamp'])
+                        except:
+                            pass
+                    
+                    # Handle different data structures for different platforms
+                    text_content = ''
+                    if platform == PlatformType.INSTAGRAM:
+                        # Instagram data might have different field names
+                        text_content = str(row.get('caption', row.get('text', row.get('title', row.get('description', '')))))
+                    else:
+                        # TikTok and other platforms
+                        text_content = str(row.get('title', row.get('text', row.get('caption', ''))))
                     
                     post_data = {
                         'platform_post_id': str(row.get('id', f"{platform}_{idx}")),
-                        'text': str(row.get('title', row.get('text', ''))),
-                        'post_url': str(row.get('postPage', row.get('webVideoUrl', ''))),
+                        'text': text_content,
+                        'post_url': str(row.get('postPage', row.get('webVideoUrl', row.get('url', '')))),
                         'description': str(row.get('description', '')),
-                        'author_name': str(row.get('authorMeta.name', '')),
-                        'like_count': int(row.get('diggCount', 0)),
-                        'comment_count': int(row.get('commentCount', 0)),
-                        'share_count': int(row.get('shareCount', 0)),
+                        'author_name': str(row.get('authorMeta.name', row.get('ownerFullName', ''))),
+                        'like_count': int(row.get('diggCount', row.get('likesCount', 0))),
+                        'comment_count': int(row.get('commentCount', row.get('commentsCount', 0))),
+                        'share_count': int(row.get('shareCount', row.get('sharesCount', 0))),
                         'view_count': int(row.get('playCount', 0)),
                         'sentiment': row.get('sentiment'),
                         'topic': row.get('topic'),
@@ -307,7 +323,8 @@ class AnalysisServiceV2:
         
         # Calculate stats
         sentiment_dist = calculate_sentiment_distribution(df['sentiment'].tolist())
-        topics_found = df['topic'].unique().tolist()
+        # Filter out NaN values from topics
+        topics_found = df['topic'].dropna().unique().tolist()
         
         # Save results to CSV (backup)
         import os
@@ -375,7 +392,8 @@ class AnalysisServiceV2:
         
         # Calculate stats
         sentiment_dist = calculate_sentiment_distribution(df['sentiment'].tolist())
-        topics_found = df['topic'].unique().tolist()
+        # Filter out NaN values from topics
+        topics_found = df['topic'].dropna().unique().tolist()
         
         # Save results to CSV (backup)
         import os

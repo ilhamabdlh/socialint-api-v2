@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import pytz
 
-from app.models.database import Brand, PlatformType, CreatedFromType
+from app.models.database import Brand, PlatformType, CreatedFromType, PlatformURL
 from app.services.database_service import DatabaseService
 
 # Initialize database service
@@ -19,7 +19,8 @@ class BrandCreate(BaseModel):
     description: str
     keywords: List[str] = []
     platforms: List[str] = []  # List of platform names (e.g., ["tiktok", "instagram", "twitter", "youtube"])
-    postUrls: List[str] = []  # Platform URLs
+    platform_urls: List[PlatformURL] = []  # New structure: platform with URLs
+    postUrls: List[str] = []  # Legacy structure: Platform URLs
     category: Optional[str] = None
     industry: Optional[str] = None
     competitors: List[str] = []
@@ -101,12 +102,37 @@ async def create_brand(brand: BrandCreate):
                 # Skip invalid platform names
                 continue
         
+        # Convert platform_urls to PlatformURL objects if provided
+        platform_urls = []
+        if brand.platform_urls:
+            platform_urls = brand.platform_urls
+        elif brand.postUrls:
+            # Convert legacy postUrls to platform_urls structure
+            for url in brand.postUrls:
+                # Try to detect platform from URL
+                platform = None
+                if 'instagram.com' in url.lower():
+                    platform = PlatformType.INSTAGRAM
+                elif 'tiktok.com' in url.lower():
+                    platform = PlatformType.TIKTOK
+                elif 'twitter.com' in url.lower() or 'x.com' in url.lower():
+                    platform = PlatformType.TWITTER
+                elif 'youtube.com' in url.lower() or 'youtu.be' in url.lower():
+                    platform = PlatformType.YOUTUBE
+                
+                if platform:
+                    platform_urls.append(PlatformURL(
+                        platform=platform,
+                        post_url=url
+                    ))
+        
         # Create brand
         brand_doc = Brand(
             name=brand.name,
             keywords=brand.keywords,
             platforms=platform_enums,
-            postUrls=brand.postUrls,
+            platform_urls=platform_urls,  # New structure
+            postUrls=brand.postUrls,  # Legacy structure for backward compatibility
             competitors=brand.competitors,
             startDate=brand.startDate,
             endDate=brand.endDate,
