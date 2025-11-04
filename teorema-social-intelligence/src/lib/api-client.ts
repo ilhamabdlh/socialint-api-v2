@@ -8,8 +8,11 @@
 // Configuration
 // =============================================================================
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
-const API_PREFIX = '/api/v1';
+// Import dari config.ts untuk konsistensi
+import { API_CONFIG } from './config';
+
+const API_BASE_URL = API_CONFIG.baseUrl;
+const API_PREFIX = API_CONFIG.prefix;
 
 // =============================================================================
 // Types & Interfaces
@@ -1162,6 +1165,373 @@ export interface EngagementPatterns {
   total_posts: number;
 }
 
+// =============================================================================
+// Admin Write API
+// =============================================================================
+
+/**
+ * Get Admin API Key from localStorage or environment
+ */
+function getAdminApiKey(): string | null {
+  return localStorage.getItem('admin_api_key') || (import.meta as any).env?.VITE_ADMIN_API_KEY || null;
+}
+
+/**
+ * Fetch Admin API with X-Admin-Key header
+ */
+async function fetchAdminAPI<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const adminKey = getAdminApiKey();
+  if (!adminKey) {
+    throw new Error('Admin API Key is not configured. Please set it in localStorage or environment variable.');
+  }
+
+  const url = `${API_BASE_URL}${API_PREFIX}/admin/write${endpoint}`;
+  
+  const defaultHeaders: HeadersInit = {
+    'Content-Type': 'application/json',
+    'X-Admin-Key': adminKey,
+  };
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Admin API Error:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// Admin Write API - Brand
+// =============================================================================
+
+export interface BrandSummaryPayload {
+  total_posts?: number;
+  total_engagement?: number;
+  avg_engagement_per_post?: number;
+  sentiment_distribution?: Record<string, number>;
+  sentiment_percentage?: Record<string, number>;
+  platform_breakdown?: Record<string, number>;
+  trending_topics?: Array<{
+    topic: string;
+    count?: number;
+    sentiment?: number;
+    engagement?: number;
+  }>;
+}
+
+export interface BrandTimelineEntry {
+  date: string;
+  Positive?: number;
+  Neutral?: number;
+  Negative?: number;
+  total_posts?: number;
+  total_likes?: number;
+  total_comments?: number;
+  total_shares?: number;
+  positive_percentage?: number;
+  neutral_percentage?: number;
+  negative_percentage?: number;
+}
+
+export interface BrandTimelinePayload {
+  entries: BrandTimelineEntry[];
+}
+
+export interface BrandTopicItem {
+  topic: string;
+  count?: number;
+  sentiment?: number;
+  engagement?: number;
+  positive?: number;
+  negative?: number;
+  neutral?: number;
+  platform?: string;
+}
+
+export interface BrandTopicsPayload {
+  items: BrandTopicItem[];
+}
+
+export interface BrandEmotionItem {
+  emotion: string;
+  count?: number;
+  percentage?: number;
+}
+
+export interface BrandEmotionsPayload {
+  emotions: BrandEmotionItem[];
+}
+
+export interface BrandDemographicsPayload {
+  total_analyzed?: number;
+  age_groups?: Array<{ age_group: string; count?: number; percentage?: number }>;
+  genders?: Array<{ gender: string; count?: number; percentage?: number }>;
+  top_locations?: Array<{ location: string; count?: number; percentage?: number }>;
+}
+
+export interface BrandPerformancePayload {
+  total_posts?: number;
+  total_engagement?: number;
+  total_likes?: number;
+  total_comments?: number;
+  total_shares?: number;
+  avg_engagement_per_post?: number;
+  avg_likes_per_post?: number;
+  avg_comments_per_post?: number;
+  avg_shares_per_post?: number;
+  engagement_rate?: number;
+  estimated_reach?: number;
+}
+
+export interface BrandEngagementPatternsPayload {
+  peak_hours?: string[];
+  active_days?: string[];
+  avg_engagement_rate?: number;
+  total_posts?: number;
+  patterns?: Array<{
+    time_slot?: string;
+    day_of_week?: string;
+    avg_engagement?: number;
+    post_count?: number;
+    platform?: string;
+  }>;
+}
+
+export interface BrandCompetitivePayload {
+  brand_metrics?: Record<string, any>;
+  industry_benchmarks?: Record<string, any>;
+  performance_vs_benchmark?: Record<string, any>;
+  market_position?: string;
+  recommendations?: string[];
+}
+
+export const adminBrandAPI = {
+  /**
+   * Write brand summary
+   */
+  async writeSummary(brandId: string, payload: BrandSummaryPayload): Promise<{ analysis_id: string; updated: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/summary`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Upsert brand timeline
+   */
+  async upsertTimeline(brandId: string, payload: BrandTimelinePayload): Promise<{ analysis_id: string; inserted: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/timeline:upsert`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Replace brand topics
+   */
+  async replaceTopics(brandId: string, payload: BrandTopicsPayload): Promise<{ analysis_id: string; replaced: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/topics:replace`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write brand emotions
+   */
+  async writeEmotions(brandId: string, payload: BrandEmotionsPayload): Promise<{ analysis_id: string; updated: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/emotions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write brand demographics
+   */
+  async writeDemographics(brandId: string, payload: BrandDemographicsPayload): Promise<{ analysis_id: string; updated: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/demographics`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write brand performance
+   */
+  async writePerformance(brandId: string, payload: BrandPerformancePayload): Promise<{ analysis_id: string; updated: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/performance`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write brand engagement patterns
+   */
+  async writeEngagementPatterns(brandId: string, payload: BrandEngagementPatternsPayload): Promise<{ analysis_id: string; updated: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/engagement-patterns`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write brand competitive analysis
+   */
+  async writeCompetitive(brandId: string, payload: BrandCompetitivePayload): Promise<{ analysis_id: string; updated: number }> {
+    return fetchAdminAPI(`/brands/${brandId}/competitive`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+// =============================================================================
+// Admin Write API - Campaign
+// =============================================================================
+
+export interface CampaignSummaryPayload {
+  total_mentions?: number;
+  overall_sentiment?: number;
+  engagement_rate?: number;
+  reach?: number;
+  sentiment_trend?: number;
+  mentions_trend?: number;
+  engagement_trend?: number;
+}
+
+export interface CampaignTimelineEntry {
+  metric_date: string;
+  sentiment_score?: number;
+  total_mentions?: number;
+  positive_count?: number;
+  negative_count?: number;
+  neutral_count?: number;
+  total_likes?: number;
+  total_comments?: number;
+  total_shares?: number;
+  engagement_rate?: number;
+  reach?: number;
+  impressions?: number;
+  platform_distribution?: Record<string, number>;
+  topic_distribution?: Record<string, number>;
+  platform_sentiment?: Record<string, Record<string, number>>;
+}
+
+export interface CampaignTimelinePayload {
+  entries: CampaignTimelineEntry[];
+}
+
+export interface CampaignTopicItem {
+  topic: string;
+  count?: number;
+  sentiment?: number;
+  engagement?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  positive?: number;
+  negative?: number;
+  neutral?: number;
+}
+
+export interface CampaignTopicsPayload {
+  items: CampaignTopicItem[];
+}
+
+export interface CampaignEmotionsPayload {
+  emotions: Array<{ emotion: string; count?: number; percentage?: number }>;
+}
+
+export interface CampaignAudiencePayload {
+  demographics: Array<{ age_group: string; gender: string; location: string; count?: number; percentage?: number }>;
+}
+
+export interface CampaignPerformancePayload {
+  overall_metrics?: Record<string, any>;
+  platform_breakdown?: Array<Record<string, any>>;
+  conversion_funnel?: Record<string, any>;
+}
+
+export const adminCampaignAPI = {
+  /**
+   * Write campaign summary
+   */
+  async writeSummary(campaignId: string, payload: CampaignSummaryPayload): Promise<{ campaign_id: string; updated: number }> {
+    return fetchAdminAPI(`/campaigns/${campaignId}/summary`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Upsert campaign timeline
+   */
+  async upsertTimeline(campaignId: string, payload: CampaignTimelinePayload): Promise<{ campaign_id: string; inserted: number }> {
+    return fetchAdminAPI(`/campaigns/${campaignId}/timeline:upsert`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Replace campaign topics
+   */
+  async replaceTopics(campaignId: string, payload: CampaignTopicsPayload): Promise<{ campaign_id: string; replaced: number }> {
+    return fetchAdminAPI(`/campaigns/${campaignId}/topics:replace`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write campaign emotions
+   */
+  async writeEmotions(campaignId: string, payload: CampaignEmotionsPayload): Promise<{ campaign_id: string; updated: number }> {
+    return fetchAdminAPI(`/campaigns/${campaignId}/emotions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write campaign audience
+   */
+  async writeAudience(campaignId: string, payload: CampaignAudiencePayload): Promise<{ campaign_id: string; updated: number }> {
+    return fetchAdminAPI(`/campaigns/${campaignId}/audience`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Write campaign performance
+   */
+  async writePerformance(campaignId: string, payload: CampaignPerformancePayload): Promise<{ campaign_id: string; updated: number }> {
+    return fetchAdminAPI(`/campaigns/${campaignId}/performance`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
 export default {
   campaign: campaignAPI,
   brand: brandAPI,
@@ -1169,4 +1539,6 @@ export default {
   scraping: scrapingAPI,
   results: resultsAPI,
   health: healthAPI,
+  adminBrand: adminBrandAPI,
+  adminCampaign: adminCampaignAPI,
 };

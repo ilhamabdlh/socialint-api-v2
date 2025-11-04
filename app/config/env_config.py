@@ -122,6 +122,12 @@ class EnvConfig:
     HEALTH_CHECK_TIMEOUT_SECONDS: int = int(os.getenv("HEALTH_CHECK_TIMEOUT_SECONDS", "10"))
     
     # =============================================================================
+    # OVERRIDES / ADMIN CONFIGURATION
+    # =============================================================================
+    ENABLE_OVERRIDES: bool = os.getenv("ENABLE_OVERRIDES", "true").lower() == "true"
+    ADMIN_API_KEY: Optional[str] = os.getenv("ADMIN_API_KEY")
+    
+    # =============================================================================
     # DATA RETENTION
     # =============================================================================
     DATA_RETENTION_DAYS: int = int(os.getenv("DATA_RETENTION_DAYS", "90"))

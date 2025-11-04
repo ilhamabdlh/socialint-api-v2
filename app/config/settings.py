@@ -95,6 +95,10 @@ class Settings(BaseSettings):
     enable_audience_profiling: bool = True
     enable_user_mapping: bool = True
     
+    # Overrides/Admin Configuration - using env_config
+    enable_overrides: bool = env_config.ENABLE_OVERRIDES
+    admin_api_key: Optional[str] = env_config.ADMIN_API_KEY
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

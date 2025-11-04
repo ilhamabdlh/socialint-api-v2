@@ -9,6 +9,7 @@ import { AnalysisFilters, FilterState } from "./AnalysisFilters";
 import { TimeSeriesCharts } from "./TimeSeriesCharts";
 import { EntityDetails } from "./EntityDetails";
 import { resultsAPI } from "../lib/api-client";
+import { API_CONFIG } from "../lib/config";
 import { 
   ArrowLeft, 
   TrendingUp, 
@@ -96,7 +97,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
   const [emotionsData, setEmotionsData] = useState<any>(null);
   const [demographicsData, setDemographicsData] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
-  const [engagementPatterns, setEngagementPatterns] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -180,11 +180,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load summary with filters - use appropriate API based on entity type
         let summaryUrl: string;
         if (entityType === 'campaign') {
-          summaryUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else if (entityType === 'content') {
-          summaryUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else {
-          summaryUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/summary-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          summaryUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/summary-simple${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         }
         
         const summaryResponse = await fetch(summaryUrl);
@@ -197,11 +197,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         try {
           let timelineUrl: string;
           if (entityType === 'campaign') {
-            timelineUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            timelineUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'content') {
-            timelineUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            timelineUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            timelineUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            timelineUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/sentiment-timeline${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           
           const timelineResponse = await fetch(timelineUrl);
@@ -218,11 +218,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
         // Load trending topics with filters
         let topicsUrl: string;
         if (entityType === 'content') {
-          topicsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          topicsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else if (entityType === 'campaign') {
-          topicsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          topicsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         } else {
-          topicsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+          topicsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/trending-topics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
         }
         const topicsResponse = await fetch(topicsUrl);
         if (topicsResponse.ok) {
@@ -240,35 +240,16 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           console.error('Failed to load trending topics:', topicsResponse.status, topicsResponse.statusText);
         }
 
-        // Load engagement patterns with filters
-        try {
-          let engagementUrl: string;
-          if (entityType === 'content') {
-            engagementUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-          } else if (entityType === 'campaign') {
-            engagementUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-          } else {
-            engagementUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/engagement-patterns${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-          }
-          const engagementResponse = await fetch(engagementUrl);
-          if (engagementResponse.ok) {
-            const engagementData = await engagementResponse.json();
-            setEngagementPatterns(engagementData);
-            console.log('Engagement patterns loaded:', engagementData);
-          }
-        } catch (engagementError) {
-          console.warn('Engagement patterns not available:', engagementError);
-        }
 
         // Load performance data with filters
         try {
           let performanceUrl: string;
           if (entityType === 'content') {
-            performanceUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            performanceUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            performanceUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const performanceResponse = await fetch(performanceUrl);
           if (performanceResponse.ok) {
@@ -283,11 +264,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           // Load emotions data with filters
           let emotionsUrl: string;
           if (entityType === 'content') {
-            emotionsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            emotionsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            emotionsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            emotionsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            emotionsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            emotionsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/emotions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const emotionsResponse = await fetch(emotionsUrl);
           if (emotionsResponse.ok) {
@@ -299,11 +280,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           // Load demographics data with filters
           let demographicsUrl: string;
           if (entityType === 'content') {
-            demographicsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            demographicsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            demographicsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/audience${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            demographicsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/audience${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            demographicsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            demographicsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/demographics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const demographicsResponse = await fetch(demographicsUrl);
           if (demographicsResponse.ok) {
@@ -315,11 +296,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
           // Load performance metrics with filters
           let performanceMetricsUrl: string;
           if (entityType === 'content') {
-            performanceMetricsUrl = `http://localhost:8000/api/v1/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceMetricsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/contents/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else if (entityType === 'campaign') {
-            performanceMetricsUrl = `http://localhost:8000/api/v1/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceMetricsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/campaigns/${entity.id}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           } else {
-            performanceMetricsUrl = `http://localhost:8000/api/v1/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            performanceMetricsUrl = `${API_CONFIG.baseUrl}${API_CONFIG.prefix}/results/brands/${brandIdentifier}/performance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
           }
           const performanceResponse = await fetch(performanceMetricsUrl);
           if (performanceResponse.ok) {
@@ -643,14 +624,11 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                 <p className="text-sm text-muted-foreground">Number of Reach</p>
                 <p className="text-2xl font-bold">
                   {(() => {
-                    const avgEngagement = (brandSummary?.avg_engagement_per_post ?? safeData.avg_engagement_per_post) || 0;
-                    if (avgEngagement > 1000000) {
-                      return `${(avgEngagement / 1000000).toFixed(1)}M`;
-                    } else if (avgEngagement > 1000) {
-                      return `${(avgEngagement / 1000).toFixed(1)}K`;
-                    } else {
-                      return avgEngagement.toLocaleString();
-                    }
+                    const reachVal = (brandSummary as any)?.estimated_reach ?? safeData.estimated_reach ?? 0;
+                    const val = Number(reachVal) || 0;
+                    if (val > 1000000) return `${(val / 1000000).toFixed(1)}M`;
+                    if (val > 1000) return `${(val / 1000).toFixed(1)}K`;
+                    return val.toLocaleString();
                   })()}
                 </p>
               </div>
@@ -903,9 +881,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                           {trendingTopics
                             .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                             .map((topic, index) => {
-                              // Hitung relevance berdasarkan count relatif terhadap max count
-                              const maxCount = Math.max(...trendingTopics.map(t => t.count));
-                              const relevancePercentage = Math.round((topic.count / maxCount) * 100);
                               
                               // Convert sentiment dari range -1 to 1 ke 0-100%
                               const sentimentPercentage = Math.round(((topic.sentiment + 1) / 2) * 100);
@@ -954,14 +929,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                                       </div>
                                     </div>
                                     
-                                    {/* Relevance */}
-                                    <div className="space-y-2">
-                                      <div className="flex justify-between text-xs">
-                                        <span>Relevance</span>
-                                        <span className="text-gray-500">{relevancePercentage}%</span>
-                                      </div>
-                                      <Progress value={relevancePercentage} className="h-2" />
-                                    </div>
                                     
                                     {/* Sentiment */}
                                     <div className="space-y-2">
@@ -1085,24 +1052,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         </div>
                       </div>
                       
-                      {/* Emotions List */}
-                      <div className="mt-6">
-                        <h3 className="text-lg font-semibold mb-3">Emotion Breakdown</h3>
-                        <div className="space-y-3">
-                          {emotionsData.emotions && emotionsData.emotions.map((emotion: any, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                                <span className="font-medium capitalize">{emotion.emotion}</span>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-semibold">{emotion.count} posts</div>
-                                <div className="text-sm text-gray-600">{emotion.percentage}%</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
@@ -1168,27 +1117,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                         </div>
                       </div>
 
-                      {/* Age Groups */}
-                      <div>
-                        <h3 className="text-lg font-semibold mb-3">Age Groups</h3>
-                        <div className="space-y-3">
-                          {demographicsData && demographicsData.demographics && demographicsData.demographics.length > 0 ? (
-                            demographicsData.demographics
-                              .filter((item: any) => item.category === 'age')
-                              .map((age: any, index: number) => (
-                                <div key={index} className="space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                    <span className="font-medium">{age.value}</span>
-                                    <span className="text-gray-600">{age.percentage}%</span>
-                                  </div>
-                                  <Progress value={age.percentage} className="h-2" />
-                                </div>
-                              ))
-                          ) : (
-                            <div className="text-center text-muted-foreground">No age data available</div>
-                          )}
-                        </div>
-                      </div>
 
                       {/* Gender Distribution */}
                       <div>
@@ -1243,58 +1171,6 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                 </Card>
               </div>
 
-              {/* Engagement Patterns - Full Width */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Engagement Patterns</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-3 gap-6">
-                    {/* Peak Hours */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3">Peak Hours</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {engagementPatterns?.peak_hours?.length > 0 ? (
-                          engagementPatterns.peak_hours.map((hour: string, index: number) => (
-                            <div key={index} className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">
-                              {hour}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-gray-500 text-sm">No data available</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Active Days */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3">Active Days</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {engagementPatterns?.active_days?.length > 0 ? (
-                          engagementPatterns.active_days.map((day: string, index: number) => (
-                            <div key={index} className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">
-                              {day}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-gray-500 text-sm">No data available</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Avg Engagement Rate */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3">Avg. Engagement Rate</h3>
-                      <div className="text-3xl font-bold text-green-600">
-                        {engagementPatterns?.avg_engagement_rate ? 
-                          `${engagementPatterns.avg_engagement_rate}%` : 
-                          '0%'
-                        }
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
 
             <TabsContent value="performance" className="space-y-6">
@@ -1372,13 +1248,23 @@ export function RealAnalysisView({ entity, entityType, onBack }: AnalysisViewPro
                       {(() => {
                         const totalEngagement = performanceData?.overall_metrics?.total_engagement || 0;
                         const totalViews = performanceData?.overall_metrics?.total_views || 0;
-                        const clicks = totalViews ? Math.round(totalViews * 0.3) : 0;
-                        const conversions = totalViews ? Math.round(totalViews * 0.1) : 0;
+                        const totalLikes = performanceData?.overall_metrics?.total_likes || 0;
+                        const totalComments = performanceData?.overall_metrics?.total_comments || 0;
+                        const totalShares = performanceData?.overall_metrics?.total_shares || 0;
                         
-                        // Calculate progress percentages based on actual values
-                        const engagementProgress = totalEngagement > 0 ? Math.min((totalEngagement / 50000) * 100, 100) : 0;
-                        const clicksProgress = totalViews > 0 ? Math.min((clicks / 1000) * 100, 100) : 0;
-                        const conversionsProgress = totalViews > 0 ? Math.min((conversions / 100) * 100, 100) : 0;
+                        // Calculate real funnel data based on actual metrics
+                        // Views -> Engagement (likes + comments + shares) -> Clicks (shares + comments) -> Conversions (comments)
+                        const clicks = totalShares + totalComments; // Clicks = shares + comments (interactions)
+                        const conversions = totalComments; // Conversions = comments (direct engagement)
+                        
+                        // Calculate progress percentages based on relative values in the funnel
+                        // Find the maximum value to use as 100% reference
+                        const maxValue = Math.max(totalEngagement, clicks, conversions);
+                        
+                        // Calculate progress as percentage of the maximum value
+                        const engagementProgress = maxValue > 0 ? (totalEngagement / maxValue) * 100 : 0;
+                        const clicksProgress = maxValue > 0 ? (clicks / maxValue) * 100 : 0;
+                        const conversionsProgress = maxValue > 0 ? (conversions / maxValue) * 100 : 0;
                         
                         return (
                           <>

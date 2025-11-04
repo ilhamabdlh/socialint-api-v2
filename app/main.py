@@ -33,12 +33,14 @@ from app.api.campaign_routes import router as campaign_router
 from app.api.brand_routes import router as brand_router
 # from app.api.content_routes import router as content_router
 from app.api.scraper_routes import router as scraper_router
+from app.api.admin.router import router as admin_write_router
 app.include_router(router, prefix="/api/v1", tags=["analysis"])
 app.include_router(results_router, prefix="/api/v1/results", tags=["results"])
 app.include_router(campaign_router, prefix="/api/v1", tags=["campaigns"])
 app.include_router(brand_router, prefix="/api/v1", tags=["brands"])
 # app.include_router(content_router, prefix="/api/v1", tags=["contents"])
 app.include_router(scraper_router, prefix="/api/v1", tags=["scraping"])
+app.include_router(admin_write_router, prefix="/api/v1/admin/write", tags=["admin-write"])
 
 @app.on_event("startup")
 async def startup_event():

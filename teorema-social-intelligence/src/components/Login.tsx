@@ -6,7 +6,7 @@ import logoSocialInt from "../../assets/logo_socialint.png";
 import { credentials } from "@/lib/credentials";
 
 interface LoginProps {
-  onLogin: (username: string, name: string) => void;
+  onLogin: (username: string, name: string, role: 'admin' | 'user') => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
@@ -31,7 +31,7 @@ export function Login({ onLogin }: LoginProps) {
       );
 
       if (user) {
-        onLogin(user.username, user.name);
+        onLogin(user.username, user.name, user.role);
       } else {
         setError("Invalid username or password. Please try again.");
       }

@@ -87,6 +87,14 @@ async def create_brand(brand: BrandCreate):
     ```
     """
     try:
+        # Helper: normalize comma-separated URLs and remove leading '@'
+        def split_urls(value: str) -> List[str]:
+            parts = []
+            for raw in value.split(','):
+                cleaned = raw.strip().lstrip('@')
+                if cleaned:
+                    parts.append(cleaned)
+            return parts
         # Check if brand already exists
         existing = await Brand.find_one(Brand.name == brand.name)
         if existing:
@@ -105,26 +113,35 @@ async def create_brand(brand: BrandCreate):
         # Convert platform_urls to PlatformURL objects if provided
         platform_urls = []
         if brand.platform_urls:
-            platform_urls = brand.platform_urls
+            # Normalize: ensure each entry has .urls list
+            for pu in brand.platform_urls:
+                if hasattr(pu, 'urls') and pu.urls:
+                    platform_urls.append(pu)
+                elif hasattr(pu, 'post_url') and pu.post_url:
+                    platform_urls.append(PlatformURL(platform=pu.platform, urls=[pu.post_url]))
         elif brand.postUrls:
             # Convert legacy postUrls to platform_urls structure
-            for url in brand.postUrls:
-                # Try to detect platform from URL
-                platform = None
-                if 'instagram.com' in url.lower():
-                    platform = PlatformType.INSTAGRAM
-                elif 'tiktok.com' in url.lower():
-                    platform = PlatformType.TIKTOK
-                elif 'twitter.com' in url.lower() or 'x.com' in url.lower():
-                    platform = PlatformType.TWITTER
-                elif 'youtube.com' in url.lower() or 'youtu.be' in url.lower():
-                    platform = PlatformType.YOUTUBE
-                
-                if platform:
-                    platform_urls.append(PlatformURL(
-                        platform=platform,
-                        post_url=url
-                    ))
+            for entry in brand.postUrls:
+                for url in split_urls(entry):
+                    # Try to detect platform from URL
+                    platform = None
+                    low = url.lower()
+                    if 'instagram.com' in low:
+                        platform = PlatformType.INSTAGRAM
+                    elif 'tiktok.com' in low:
+                        platform = PlatformType.TIKTOK
+                    elif 'twitter.com' in low or 'x.com' in low:
+                        platform = PlatformType.TWITTER
+                    elif 'youtube.com' in low or 'youtu.be' in low:
+                        platform = PlatformType.YOUTUBE
+                    if platform:
+                        # Merge into existing PlatformURL for same platform
+                        existing = next((pu for pu in platform_urls if pu.platform == platform), None)
+                        if existing:
+                            if url not in existing.urls:
+                                existing.urls.append(url)
+                        else:
+                            platform_urls.append(PlatformURL(platform=platform, urls=[url]))
         
         # Create brand
         brand_doc = Brand(
@@ -199,14 +216,30 @@ async def list_brands(
         else:
             brands = await Brand.find().skip(skip).limit(limit).to_list()
         
-        return [
-            BrandResponse(
+        responses: List[BrandResponse] = []
+        for b in brands:
+            # Flatten platform_urls to simple list of URLs (separated)
+            flat_urls: List[str] = []
+            if getattr(b, 'platform_urls', None):
+                for pu in b.platform_urls:
+                    if getattr(pu, 'urls', None):
+                        flat_urls.extend([u for u in pu.urls if u])
+                    elif getattr(pu, 'post_url', None):
+                        flat_urls.append(pu.post_url)
+            # Include legacy postUrls (split commas if any)
+            if getattr(b, 'postUrls', None):
+                for entry in b.postUrls:
+                    for url in entry.split(','):
+                        cleaned = url.strip().lstrip('@')
+                        if cleaned:
+                            flat_urls.append(cleaned)
+            responses.append(BrandResponse(
                 id=str(b.id),
                 name=b.name,
                 description=b.description,
                 keywords=b.keywords,
                 platforms=[p.value for p in b.platforms],
-                postUrls=b.postUrls,
+                postUrls=flat_urls,
                 category=b.industry,
                 industry=b.industry,
                 competitors=b.competitors,
@@ -215,9 +248,8 @@ async def list_brands(
                 created_from=b.created_from.value,
                 created_at=b.created_at,
                 updated_at=b.updated_at
-            )
-            for b in brands
-        ]
+            ))
+        return responses
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -232,13 +264,28 @@ async def get_brand(brand_name: str):
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
+        # Flatten URLs when returning single brand too
+        flat_urls_single: List[str] = []
+        if getattr(brand, 'platform_urls', None):
+            for pu in brand.platform_urls:
+                if getattr(pu, 'urls', None):
+                    flat_urls_single.extend([u for u in pu.urls if u])
+                elif getattr(pu, 'post_url', None):
+                    flat_urls_single.append(pu.post_url)
+        if getattr(brand, 'postUrls', None):
+            for entry in brand.postUrls:
+                for url in entry.split(','):
+                    cleaned = url.strip().lstrip('@')
+                    if cleaned:
+                        flat_urls_single.append(cleaned)
+
         return BrandResponse(
             id=str(brand.id),
             name=brand.name,
             description=brand.description,
             keywords=brand.keywords,
             platforms=[p.value for p in brand.platforms],
-            postUrls=brand.postUrls,
+            postUrls=flat_urls_single,
             category=brand.industry,
             industry=brand.industry,
             competitors=brand.competitors,
@@ -277,6 +324,10 @@ async def update_brand(brand_identifier: str, update: BrandUpdate):
         if not brand:
             raise HTTPException(status_code=404, detail="Brand not found")
         
+        # Helper splitter
+        def split_urls(value: str) -> List[str]:
+            return [u.strip().lstrip('@') for u in value.split(',') if u.strip()]
+
         # Update fields
         if update.description is not None:
             brand.description = update.description
@@ -295,6 +346,29 @@ async def update_brand(brand_identifier: str, update: BrandUpdate):
             brand.platforms = platform_enums
         if update.postUrls is not None:
             brand.postUrls = update.postUrls
+            # Normalize also into platform_urls
+            new_platform_urls: List[PlatformURL] = []
+            for entry in update.postUrls:
+                for url in split_urls(entry):
+                    low = url.lower()
+                    platform = None
+                    if 'instagram.com' in low:
+                        platform = PlatformType.INSTAGRAM
+                    elif 'tiktok.com' in low:
+                        platform = PlatformType.TIKTOK
+                    elif 'twitter.com' in low or 'x.com' in low:
+                        platform = PlatformType.TWITTER
+                    elif 'youtube.com' in low or 'youtu.be' in low:
+                        platform = PlatformType.YOUTUBE
+                    if platform:
+                        existing = next((pu for pu in new_platform_urls if pu.platform == platform), None)
+                        if existing:
+                            if url not in existing.urls:
+                                existing.urls.append(url)
+                        else:
+                            new_platform_urls.append(PlatformURL(platform=platform, urls=[url]))
+            if new_platform_urls:
+                brand.platform_urls = new_platform_urls
         if update.industry is not None:
             brand.industry = update.industry
         if update.competitors is not None:
@@ -307,13 +381,22 @@ async def update_brand(brand_identifier: str, update: BrandUpdate):
         brand.updated_at = datetime.now(pytz.UTC)
         await brand.save()
         
+        # Flatten URLs for response
+        flat_urls_single: List[str] = []
+        if getattr(brand, 'platform_urls', None):
+            for pu in brand.platform_urls:
+                if getattr(pu, 'urls', None):
+                    flat_urls_single.extend([u for u in pu.urls if u])
+                elif getattr(pu, 'post_url', None):
+                    flat_urls_single.append(pu.post_url)
+
         return BrandResponse(
             id=str(brand.id),
             name=brand.name,
             description=brand.description,
             keywords=brand.keywords,
             platforms=[p.value for p in brand.platforms],
-            postUrls=brand.postUrls,
+            postUrls=flat_urls_single or brand.postUrls,
             category=brand.industry,
             industry=brand.industry,
             competitors=brand.competitors,

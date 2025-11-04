@@ -48,9 +48,12 @@ class CampaignType(str, Enum):
 
 # New Models for Platform URLs
 class PlatformURL(BaseModel):
-    """Platform URL model - represents a platform with its URL"""
+    """Platform URL model - represents a platform with one or more URLs"""
     platform: PlatformType
-    post_url: str
+    # New: support multiple URLs per platform
+    urls: List[str] = []
+    # Backward-compat single URL field
+    post_url: Optional[str] = None
     
     class Config:
         use_enum_values = True
@@ -450,6 +453,9 @@ class CampaignMetrics(Document):
     # Analysis metadata
     posts_analyzed: int = 0
     comments_analyzed: int = 0
+    
+    # Manual override flag (set when data is manually edited via CMS)
+    is_manual_override: bool = False
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.now)

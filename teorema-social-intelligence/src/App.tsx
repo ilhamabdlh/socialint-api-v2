@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "./components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { CampaignManagement } from "./components/CampaignManagement";
 import { BrandManagement } from "./components/BrandManagement";
 import { ContentManagement } from "./components/ContentManagement";
 import { RealAnalysisView } from "./components/RealAnalysisView";
+import { BrandCMS } from "./components/BrandCMS";
+import { CampaignCMS } from "./components/CampaignCMS";
 import { Login } from "./components/Login";
 import { Campaign, Brand, Content } from "./lib/mock-data";
 import logoSocialInt from "../assets/logo_socialint.png";
@@ -15,14 +17,20 @@ import {
   Building2,
   FileText,
   LogOut,
-  User
+  User,
+  Settings
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "./components/ui/dialog";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
+import { Button } from "./components/ui/button";
 
 export default function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
+  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
 
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [activeTab, setActiveTab] = useState("campaign-analysis");
@@ -33,35 +41,53 @@ export default function App() {
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
 
+  // Admin API Key configuration
+  const [adminApiKey, setAdminApiKey] = useState<string>("");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Load Admin API Key on mount
+  useEffect(() => {
+    const storedKey = localStorage.getItem("admin_api_key");
+    if (storedKey) {
+      setAdminApiKey(storedKey);
+    }
+  }, []);
+
   // Check authentication on mount
   useEffect(() => {
     const storedAuth = localStorage.getItem("isAuthenticated");
     const storedUsername = localStorage.getItem("username");
     const storedName = localStorage.getItem("name");
+    const storedRole = localStorage.getItem("role");
     
-    if (storedAuth === "true" && storedUsername && storedName) {
+    if (storedAuth === "true" && storedUsername && storedName && storedRole) {
       setIsAuthenticated(true);
       setUsername(storedUsername);
       setName(storedName);
+      setUserRole(storedRole as 'admin' | 'user');
     }
   }, []);
 
-  const handleLogin = (user: string, fullName: string) => {
+  const handleLogin = (user: string, fullName: string, role: 'admin' | 'user') => {
     setIsAuthenticated(true);
     setUsername(user);
     setName(fullName);
+    setUserRole(role);
     localStorage.setItem("isAuthenticated", "true");
     localStorage.setItem("username", user);
     localStorage.setItem("name", fullName);
+    localStorage.setItem("role", role);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUsername("");
     setName("");
+    setUserRole(null);
     localStorage.removeItem("isAuthenticated");
     localStorage.removeItem("username");
     localStorage.removeItem("name");
+    localStorage.removeItem("role");
     // Reset state
     setSelectedCampaign(null);
     setSelectedBrand(null);
@@ -96,6 +122,9 @@ export default function App() {
     setSelectedContent(null);
     setActiveSubTab("management");
   };
+
+  // Check if user is admin
+  const isAdmin = userRole === 'admin';
 
   // Jika belum login, tampilkan halaman login
   if (!isAuthenticated) {
@@ -133,6 +162,57 @@ export default function App() {
                 <Calendar className="h-4 w-4" />
                 <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
               </div>
+              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <DialogTrigger asChild>
+                  <button
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Admin API Key Configuration</DialogTitle>
+                    <DialogDescription>
+                      Configure Admin API Key for CMS write operations. This key is required to edit Brand and Campaign data.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="admin-api-key">Admin API Key</Label>
+                      <Input
+                        id="admin-api-key"
+                        type="password"
+                        value={adminApiKey}
+                        onChange={(e) => setAdminApiKey(e.target.value)}
+                        placeholder="Enter Admin API Key"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This key will be stored in localStorage and sent as X-Admin-Key header.
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsSettingsOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          if (adminApiKey) {
+                            localStorage.setItem("admin_api_key", adminApiKey);
+                            setIsSettingsOpen(false);
+                          }
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <button
                 onClick={handleRefresh}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-border hover:bg-accent transition-colors"
@@ -177,9 +257,10 @@ export default function App() {
                   <h2 className="text-xl font-semibold">Campaign Analysis</h2>
                   <p className="text-sm text-muted-foreground">Monitor and analyze marketing campaigns</p>
                 </div>
-                <TabsList className="grid grid-cols-2">
+                <TabsList className={isAdmin ? "grid grid-cols-3" : "grid grid-cols-2"}>
                   <TabsTrigger value="management">Management</TabsTrigger>
                   <TabsTrigger value="analysis" disabled={!selectedCampaign}>Analysis</TabsTrigger>
+                  {isAdmin && <TabsTrigger value="cms" disabled={!selectedCampaign}>CMS</TabsTrigger>}
                 </TabsList>
               </div>
               
@@ -196,6 +277,17 @@ export default function App() {
                   />
                 )}
               </TabsContent>
+
+              {isAdmin && (
+                <TabsContent value="cms">
+                  {selectedCampaign && (
+                    <CampaignCMS 
+                      campaign={selectedCampaign}
+                      onBack={handleBackToManagement}
+                    />
+                  )}
+                </TabsContent>
+              )}
             </Tabs>
           </TabsContent>
 
@@ -206,9 +298,10 @@ export default function App() {
                   <h2 className="text-xl font-semibold">Brand Analysis</h2>
                   <p className="text-sm text-muted-foreground">Track brand perception and competitive landscape</p>
                 </div>
-                <TabsList className="grid grid-cols-2">
+                <TabsList className={isAdmin ? "grid grid-cols-3" : "grid grid-cols-2"}>
                   <TabsTrigger value="management">Management</TabsTrigger>
                   <TabsTrigger value="analysis" disabled={!selectedBrand}>Analysis</TabsTrigger>
+                  {isAdmin && <TabsTrigger value="cms" disabled={!selectedBrand}>CMS</TabsTrigger>}
                 </TabsList>
               </div>
               
@@ -225,6 +318,17 @@ export default function App() {
                   />
                 )}
               </TabsContent>
+
+              {isAdmin && (
+                <TabsContent value="cms">
+                  {selectedBrand && (
+                    <BrandCMS 
+                      brand={selectedBrand}
+                      onBack={handleBackToManagement}
+                    />
+                  )}
+                </TabsContent>
+              )}
             </Tabs>
           </TabsContent>
 
